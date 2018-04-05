@@ -43,13 +43,18 @@ type OMCSession
 		   omhome=ENV["OPENMODELICAHOME"]
 		   ompath=replace(joinpath(omhome,"bin","omc.exe"),"\\","/")
 		   spawn(pipeline(`$ompath $args2 $args3$args4`))
-		   sleep(0.2)
+		   portfile=join(["openmodelica.port.julia.",args4])
 		else
-		   spawn(pipeline(`omc $args2 $args3$args4`))
-		   sleep(0.2)
-		end		
-		path=join(["openmodelica.port.julia.",args4])
-		fullpath=joinpath(tempdir(),path)
+		   if (Compat.Sys.isapple())
+		      spawn(pipeline(`/opt/openmodelica/bin/omc $args2 $args3$args4`))
+		   else
+		      spawn(pipeline(`omc $args2 $args3$args4`))
+		   end
+		   portfile=join(["openmodelica.",ENV["USER"],".port.julia.",args4])
+		end	
+        sleep(0.5)		
+		#path=join(["openmodelica.port.julia.",args4])
+		fullpath=joinpath(tempdir(),portfile)
 		this.context=ZMQ.Context()
         this.socket =ZMQ.Socket(this.context, REQ)
         ZMQ.connect(this.socket, readstring(fullpath))
