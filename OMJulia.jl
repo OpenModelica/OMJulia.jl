@@ -1,75 +1,246 @@
-#= 
- This file is part of OpenModelica.
- Copyright (c) 1998-CurrentYear, Open Source Modelica Consortium (OSMC),
- c/o Linköpings universitet, Department of Computer and Information Science,
- SE-58183 Linköping, Sweden.
+#=
+This file is part of OpenModelica.
+Copyright (c) 1998-CurrentYear, Open Source Modelica Consortium (OSMC),
+c/o Linköpings universitet, Department of Computer and Information Science,
+SE-58183 Linköping, Sweden.
 
- All rights reserved.
+All rights reserved.
 
- THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE BSD NEW LICENSE OR THE
- GPL VERSION 3 LICENSE OR THE OSMC PUBLIC LICENSE (OSMC-PL) VERSION 1.2.
- ANY USE, REPRODUCTION OR DISTRIBUTION OF THIS PROGRAM CONSTITUTES
- RECIPIENT'S ACCEPTANCE OF THE OSMC PUBLIC LICENSE OR THE GPL VERSION 3,
- ACCORDING TO RECIPIENTS CHOICE.
+THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE BSD NEW LICENSE OR THE
+GPL VERSION 3 LICENSE OR THE OSMC PUBLIC LICENSE (OSMC-PL) VERSION 1.2.
+ANY USE, REPRODUCTION OR DISTRIBUTION OF THIS PROGRAM CONSTITUTES
+RECIPIENT'S ACCEPTANCE OF THE OSMC PUBLIC LICENSE OR THE GPL VERSION 3,
+ACCORDING TO RECIPIENTS CHOICE.
 
- The OpenModelica software and the OSMC (Open Source Modelica Consortium)
- Public License (OSMC-PL) are obtained from OSMC, either from the above
- address, from the URLs: http://www.openmodelica.org or
- http://www.ida.liu.se/projects/OpenModelica, and in the OpenModelica
- distribution. GNU version 3 is obtained from:
- http://www.gnu.org/copyleft/gpl.html. The New BSD License is obtained from:
- http://www.opensource.org/licenses/BSD-3-Clause.
+The OpenModelica software and the OSMC (Open Source Modelica Consortium)
+Public License (OSMC-PL) are obtained from OSMC, either from the above
+address, from the URLs: http://www.openmodelica.org or
+http://www.ida.liu.se/projects/OpenModelica, and in the OpenModelica
+distribution. GNU version 3 is obtained from:
+http://www.gnu.org/copyleft/gpl.html. The New BSD License is obtained from:
+http://www.opensource.org/licenses/BSD-3-Clause.
 
- This program is distributed WITHOUT ANY WARRANTY; without even the implied
- warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, EXCEPT AS
- EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
- CONDITIONS OF OSMC-PL.
+This program is distributed WITHOUT ANY WARRANTY; without even the implied
+warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, EXCEPT AS
+EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
+CONDITIONS OF OSMC-PL.
 =#
 
 module OMJulia
 using ZMQ
 using Compat
+using LightXML
 
 type OMCSession
-    sendExpression::Function
-	context
-	socket
-    function OMCSession()
-	    this = new() 
-		args2="--interactive=zmq"
-		args3="+z=julia."
-		args4=randstring(10)
-		if (Compat.Sys.iswindows())
-		   omhome=ENV["OPENMODELICAHOME"]
-		   #ompath=replace(joinpath(omhome,"bin","omc.exe"),"\\","/")
-		   ompath=joinpath(omhome,"bin")
-		   #add omc to path if not exist
-		   ENV["PATH"]=ENV["PATH"]*ompath
-		   spawn(pipeline(`omc $args2 $args3$args4`))
-		   portfile=join(["openmodelica.port.julia.",args4])
-		else
-		   if (Compat.Sys.isapple())
-              #add omc to path if not exist
-		      ENV["PATH"]=ENV["PATH"]*"/opt/openmodelica/bin"
-		      spawn(pipeline(`omc $args2 $args3$args4`))
+   sendExpression::Function
+   ModelicaSystem::Function
+   xmlparse::Function
+   getQuantities::Function
+   getParameters::Function
+   getSimulationOptions::Function
+   getSolutions::Function
+   simulate::Function
+   simulateOptions
+   resultfile
+   filepath
+   modelname
+   xmlfile
+   quantitieslist
+   parameterlist
+   context
+   socket
+   function OMCSession()
+      this = new()
+      this.quantitieslist=Any[]
+      this.parameterlist=Dict()
+	  this.simulateOptions=Dict()
+	  this.filepath=""
+	  this.modelname=""
+	  this.resultfile=""
+      args2="--interactive=zmq"
+      args3="+z=julia."
+      args4=randstring(10)
+      if (Compat.Sys.iswindows())
+         omhome=ENV["OPENMODELICAHOME"]
+         #ompath=replace(joinpath(omhome,"bin","omc.exe"),"\\","/")
+         ompath=joinpath(omhome,"bin")
+         #add omc to path if not exist
+         ENV["PATH"]=ENV["PATH"]*ompath
+         spawn(pipeline(`omc $args2 $args3$args4`))
+         portfile=join(["openmodelica.port.julia.",args4])
+      else
+         if (Compat.Sys.isapple())
+            #add omc to path if not exist
+            ENV["PATH"]=ENV["PATH"]*"/opt/openmodelica/bin"
+            spawn(pipeline(`omc $args2 $args3$args4`))
+         else
+            spawn(pipeline(`omc $args2 $args3$args4`))
+         end
+         portfile=join(["openmodelica.",ENV["USER"],".port.julia.",args4])
+      end
+      sleep(0.5)
+      fullpath=joinpath(tempdir(),portfile)
+      this.context=ZMQ.Context()
+      this.socket =ZMQ.Socket(this.context, REQ)
+      ZMQ.connect(this.socket, readstring(fullpath))
+
+      this.sendExpression = function (expr)
+         ZMQ.send(this.socket,expr)
+         message=ZMQ.recv(this.socket)
+         return (unsafe_string(message))
+      end
+
+      this.ModelicaSystem = function (filename, modelname)
+	     this.filepath=filename
+		 this.modelname=modelname
+		 filepath=replace(abspath(filename),"\\","/")
+		 if(isfile(filepath))		    
+			 loadmsg=this.sendExpression("loadFile(\""*filepath*"\")")
+			 if(!parse(loadmsg))
+				return this.sendExpression("getErrorString()")
+			 end
+         else
+             return println(filename, "  !NotFound")
+         end 
+		 
+		 buildmodelexpr=join(["buildModel(",modelname,")"])
+		 buildModelmsg=this.sendExpression(buildmodelexpr)
+		 parsebuilexp=parse(buildModelmsg)
+		 if(!isempty(parsebuilexp.args[2]))
+		     this.xmlfile=joinpath(pwd(),parsebuilexp.args[2])
+	         xmlparse(this)
+		 else
+		     return this.sendExpression("getErrorString()")
+		 end 
+         # ZMQ.send(this.socket,buildmodelexpr)
+         # message=ZMQ.recv(this.socket)
+         # this.xmlfile=joinpath(pwd(),join([modelname,"_init.xml"]))
+         # xmlparse(this)
+      end
+
+      this.getQuantities = function(name=nothing)
+         if(name==nothing)
+            return this.quantitieslist
+         elseif(isa(name,String))
+            return [x for x in this.quantitieslist if x["name"] == name]
+         elseif (isa(name,Array))
+		    return [x for y in name for x in this.quantitieslist if x["name"]==y]
+            # qlist=Any[]
+            # for n in name
+               # for i in this.quantitieslist
+                  # if(i["name"]==n)
+                     # push!(qlist,i)
+                  # end
+               # end
+            # end
+            # return qlist
+         end
+      end
+
+      this.getParameters = function (name=nothing)
+         if(name==nothing)
+            return this.parameterlist
+         elseif (isa(name,Array))
+            return [get(this.parameterlist,x,0) for x in name]
+         end
+      end
+      
+	  this.getSimulationOptions = function (name=nothing)
+		 if (name==nothing)
+		    return this.simulateOptions
+		 elseif(isa(name,Array))
+		    return [get(this.simulateOptions,x,0) for x in name]
+         end 
+	  end 
+	  
+	  this.simulate = function()
+	      println(this.xmlfile)
+		  if(isfile(this.xmlfile))
+			  if (Compat.Sys.iswindows())
+			     getexefile=replace(joinpath(pwd(),join([this.modelname,".exe"])),"\\","/")
+			  else
+			     getexefile=replace(joinpath(pwd(),this.modelname),"\\","/")
+			  end
+			  if(isfile(getexefile))
+				run(`$getexefile`)
+				this.resultfile=replace(joinpath(pwd(),join([this.modelname,"_res.mat"])),"\\","/")
+              else
+                return println("! Simulation Failed")
+              end				
+		  end 
+	  end 
+	  
+	  this.getSolutions = function(name=nothing)
+		   if(!isempty(this.resultfile))
+		      if(name==nothing)
+			     simresultvars=this.sendExpression("readSimulationResultVars(\"" * this.resultfile * "\")")
+				 parsesimresultvars=parse(simresultvars)
+				 return parsesimresultvars.args
+			   elseif(isa(name,Array))
+			     resultvar=join(["{",join(name,","),"}"])
+				 #println(resultvar)
+			     simres=this.sendExpression("readSimulationResult(\""* this.resultfile * "\","* resultvar *")")
+				 data=parse(simres)
+				 plotdata=Any[]
+				 for item in data.args
+					push!(plotdata,item.args)
+				 end 
+				 return plotdata
+			  end 
 		   else
-		      spawn(pipeline(`omc $args2 $args3$args4`))
+		      return println("Model not Simulated, Simulate the model to get the results")
 		   end
-		   portfile=join(["openmodelica.",ENV["USER"],".port.julia.",args4])
-		end	
-        sleep(0.5)		
-		fullpath=joinpath(tempdir(),portfile)
-		this.context=ZMQ.Context()
-        this.socket =ZMQ.Socket(this.context, REQ)
-        ZMQ.connect(this.socket, readstring(fullpath))
-		
-		this.sendExpression = function (expr)
-			ZMQ.send(this.socket,expr)
-            message=ZMQ.recv(this.socket)
-            return (unsafe_string(message))
-        end
-		
-        return this
-    end 
-  end 	
-end 
+	  end 
+	  
+      function xmlparse(this)
+         if(isfile(this.xmlfile))
+            xdoc = parse_file(this.xmlfile)
+            # get the root element
+            xroot = root(xdoc)  # an instance of XMLElement
+            for c in child_nodes(xroot)  # c is an instance of XMLNode
+               if is_elementnode(c)
+                  e = XMLElement(c)  # this makes an XMLElement instance
+				  if(name(e)=="DefaultExperiment")		
+				    this.simulateOptions["startTime"]=attribute(e, "startTime")
+					this.simulateOptions["stopTime"]=attribute(e, "stopTime")
+					this.simulateOptions["stepSize"]=attribute(e, "stepSize")
+					this.simulateOptions["tolerance"]=attribute(e, "tolerance")
+					this.simulateOptions["solver"]=attribute(e, "solver")				
+				  end 
+                  if(name(e)=="ModelVariables")
+                     for r in child_elements(e)
+                        scalar = Dict()
+                        scalar["name"] = attribute(r, "name")
+                        scalar["changeable"] = attribute(r,"isValueChangeable")
+                        scalar["description"] = attribute(r,"description")
+                        scalar["variability"] = attribute(r, "variability")
+                        scalar["causality"] = attribute(r,"causality")
+                        scalar["alias"] = attribute(r,"alias")
+                        scalar["aliasvariable"] = attribute(r,"aliasVariable")
+                        subchild=child_elements(r)
+                        for s in subchild
+                           value = attribute(s, "start")
+                           if(value!=nothing)
+                              scalar["value"]=value
+                           else
+                              scalar["value"]="None"
+                           end
+                        end
+                        if(scalar["variability"]=="parameter")
+                           this.parameterlist[scalar["name"]]=scalar["value"]
+                        end
+                        push!(this.quantitieslist,scalar )
+                     end
+                  end
+               end
+            end
+            #return quantities
+         else
+            println("file not generated")
+            return
+         end
+      end
+      return this
+   end
+end
+end
