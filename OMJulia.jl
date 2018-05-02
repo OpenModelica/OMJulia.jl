@@ -200,7 +200,13 @@ type OMCSession
 			     simresultvars=this.sendExpression("readSimulationResultVars(\"" * this.resultfile * "\")")
 				 parsesimresultvars=parse(simresultvars)
 				 return parsesimresultvars.args
-			   elseif(isa(name,Array))
+			  elseif(isa(name,String))
+			     resultvar=join(["{",name,"}"])
+                 simres=this.sendExpression("readSimulationResult(\""* this.resultfile * "\","* resultvar *")")
+				 data=parse(simres)
+				 this.sendExpression("closeSimulationResultFile()")
+                 return [plotdata.args for plotdata in data.args]				 
+			  elseif(isa(name,Array))
 			     resultvar=join(["{",join(name,","),"}"])
 				 #println(resultvar)
 			     simres=this.sendExpression("readSimulationResult(\""* this.resultfile * "\","* resultvar *")")
@@ -209,6 +215,7 @@ type OMCSession
 				 for item in data.args
 					push!(plotdata,item.args)
 				 end 
+				 this.sendExpression("closeSimulationResultFile()")
 				 return plotdata
 			  end 
 		   else
