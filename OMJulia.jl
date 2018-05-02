@@ -39,8 +39,12 @@ type OMCSession
    getParameters::Function
    getSimulationOptions::Function
    getSolutions::Function
+   setParameters::Function
+   setSimulationOptions::Function
    simulate::Function
+   simulationFlag
    simulateOptions
+   overridevariables
    resultfile
    filepath
    modelname
@@ -51,12 +55,14 @@ type OMCSession
    socket
    function OMCSession()
       this = new()
+	  this.overridevariables=Dict()
       this.quantitieslist=Any[]
       this.parameterlist=Dict()
 	  this.simulateOptions=Dict()
 	  this.filepath=""
 	  this.modelname=""
 	  this.resultfile=""
+	  this.simulationFlag=""
       args2="--interactive=zmq"
       args3="+z=julia."
       args4=randstring(10)
@@ -94,20 +100,21 @@ type OMCSession
 	     this.filepath=filename
 		 this.modelname=modelname
 		 filepath=replace(abspath(filename),"\\","/")
+		 #println(filepath)
 		 if(isfile(filepath))		    
 			 loadmsg=this.sendExpression("loadFile(\""*filepath*"\")")
 			 if(!parse(loadmsg))
 				return this.sendExpression("getErrorString()")
 			 end
          else
-             return println(filename, "  !NotFound")
+             return println(filename, "! NotFound")
          end 
 		 
 		 buildmodelexpr=join(["buildModel(",modelname,")"])
 		 buildModelmsg=this.sendExpression(buildmodelexpr)
 		 parsebuilexp=parse(buildModelmsg)
 		 if(!isempty(parsebuilexp.args[2]))
-		     this.xmlfile=joinpath(pwd(),parsebuilexp.args[2])
+		     this.xmlfile=replace(joinpath(pwd(),parsebuilexp.args[2]),"\\","/")
 	         xmlparse(this)
 		 else
 		     return this.sendExpression("getErrorString()")
@@ -140,6 +147,8 @@ type OMCSession
       this.getParameters = function (name=nothing)
          if(name==nothing)
             return this.parameterlist
+		 elseif(isa(name,String))
+		    return get(this.parameterlist,name,0)
          elseif (isa(name,Array))
             return [get(this.parameterlist,x,0) for x in name]
          end
@@ -148,6 +157,8 @@ type OMCSession
 	  this.getSimulationOptions = function (name=nothing)
 		 if (name==nothing)
 		    return this.simulateOptions
+		 elseif(isa(name,String))
+		    return get(this.simulateOptions,name,0)
 		 elseif(isa(name,Array))
 		    return [get(this.simulateOptions,x,0) for x in name]
          end 
@@ -162,8 +173,21 @@ type OMCSession
 			     getexefile=replace(joinpath(pwd(),this.modelname),"\\","/")
 			  end
 			  if(isfile(getexefile))
-				run(`$getexefile`)
+			    if(!isempty(this.overridevariables))
+					overridelist=Any[]
+					for k in keys(this.overridevariables)
+						val=join([k,"=",this.overridevariables[k]])
+						push!(overridelist,val)
+					end
+					#println(overridelist)
+				    overridevar=join(["-override=",join(overridelist,",")])
+					#println(overridevar)	
+                    run(`$getexefile $overridevar`)					
+				else				
+				   run(`$getexefile`)
+				end 
 				this.resultfile=replace(joinpath(pwd(),join([this.modelname,"_res.mat"])),"\\","/")
+				this.simulationFlag="True"
               else
                 return println("! Simulation Failed")
               end				
@@ -191,6 +215,53 @@ type OMCSession
 		      return println("Model not Simulated, Simulate the model to get the results")
 		   end
 	  end 
+	  
+	  this.setParameters = function (name)
+	     if(isa(name,String))
+			 value=split(name,"=")
+		     #setxmlfileexpr="setInitXmlStartValue(\""* this.xmlfile * "\",\""* value[1]* "\",\""*value[2]*"\",\""*this.xmlfile*"\")"
+			 #println(haskey(this.parameterlist, value[1]))
+			 if(haskey(this.parameterlist,value[1]))
+			      this.parameterlist[value[1]]=value[2]
+				  this.overridevariables[value[1]]=value[2]
+			 else
+			      return println(value[1], "is not a parameter")
+		     end 
+			 #this.sendExpression(setxmlfileexpr)
+	     elseif(isa(name,Array))
+			for var in name
+			     value=split(var,"=")
+		         if(haskey(this.parameterlist,value[1]))
+					this.parameterlist[value[1]]=value[2]
+					this.overridevariables[value[1]]=value[2]
+				else
+					return println(value[1], "is not a parameter")
+		        end 
+			end 
+		 end 		    
+	  end
+	  
+      this.setSimulationOptions = function (name)
+		 if(isa(name,String))
+			 value=split(name,"=")
+			 if(haskey(this.simulateOptions,value[1]))
+			      this.simulateOptions[value[1]]=value[2]
+				  this.overridevariables[value[1]]=value[2]
+			 else
+			      return println(value[1], "is not a SimulationOption")
+		     end 
+	     elseif(isa(name,Array))
+			for var in name
+			     value=split(var,"=")
+		         if(haskey(this.simulateOptions,value[1]))
+					this.simulateOptions[value[1]]=value[2]
+					this.overridevariables[value[1]]=value[2]
+				else
+					return println(value[1], "is not a SimulationOption")
+		        end 
+			end 
+		 end
+      end	
 	  
       function xmlparse(this)
          if(isfile(this.xmlfile))
