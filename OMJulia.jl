@@ -39,8 +39,12 @@ type OMCSession
    getParameters::Function
    getSimulationOptions::Function
    getSolutions::Function
+   getInputs::Function
+   getOutputs::Function
+   getContinuous::Function
    setParameters::Function
    setSimulationOptions::Function
+   setInputs::Function
    simulate::Function
    simulationFlag
    simulateOptions
@@ -53,6 +57,9 @@ type OMCSession
    xmlfile
    quantitieslist
    parameterlist
+   inputlist
+   outputlist
+   continuouslist
    context
    socket
    function OMCSession()
@@ -61,6 +68,9 @@ type OMCSession
       this.quantitieslist=Any[]
       this.parameterlist=Dict()
       this.simulateOptions=Dict()
+      this.inputlist=Dict()
+      this.outputlist=Dict()
+      this.continuouslist=Dict()
       this.currentdir=pwd()
       this.filepath=""
       this.modelname=""
@@ -167,6 +177,106 @@ type OMCSession
             return get(this.simulateOptions,name,0)
          elseif(isa(name,Array))
             return [get(this.simulateOptions,x,0) for x in name]
+         end
+      end
+
+      this.getContinuous = function (name=nothing)
+         if(this.simulationFlag=="")
+            if (name==nothing)
+               return this.continuouslist
+            elseif(isa(name,String))
+               return get(this.continuouslist,name,0)
+            elseif(isa(name,Array))
+               return [get(this.continuouslist,x,0) for x in name]
+            end
+         end
+         if(this.simulationFlag=="True")
+            if (name==nothing)
+               for name in keys(this.continuouslist)
+                  ## failing for variables with $ sign
+                  # println(name)
+                  # value=this.getSolutions(name)
+                  # value1=value[1]
+                  # this.continuouslist[name]=value1[end]
+               end
+               return this.continuouslist
+            elseif(isa(name,String))
+               if(haskey(this.continuouslist,name))
+                  value=this.getSolutions(name)
+                  value1=value[1]
+                  this.continuouslist[name]=value1[end]
+                  return get(this.continuouslist,name,0)
+               else
+                  return println(name, "is not continuous")
+               end
+            elseif(isa(name,Array))
+               continuousvaluelist=Any[]
+               for x in name
+                  if(haskey(this.continuouslist,x))
+                     value=this.getSolutions(x)
+                     value1=value[1]
+                     this.continuouslist[x]=value1[end]
+                     push!(continuousvaluelist,value1[end])
+                  else
+                     return println(x, "is not continuous")
+                  end
+               end
+               return continuousvaluelist
+            end
+         end
+      end
+
+      this.getInputs = function (name=nothing)
+         if (name==nothing)
+            return this.inputlist
+         elseif(isa(name,String))
+            return get(this.inputlist,name,0)
+         elseif(isa(name,Array))
+            return [get(this.inputlist,x,0) for x in name]
+         end
+      end
+
+      this.getOutputs = function (name=nothing)
+         if(this.simulationFlag=="")
+            if (name==nothing)
+               return this.outputlist
+            elseif(isa(name,String))
+               return get(this.outputlist,name,0)
+            elseif(isa(name,Array))
+               return [get(this.outputlist,x,0) for x in name]
+            end
+         end
+         if(this.simulationFlag=="True")
+            if (name==nothing)
+               for name in keys(this.outputlist)
+                  value=this.getSolutions(name)
+                  value1=value[1]
+                  this.outputlist[name]=value1[end]
+               end
+               return this.outputlist
+            elseif(isa(name,String))
+               if(haskey(this.outputlist,name))
+                  value=this.getSolutions(name)
+                  value1=value[1]
+                  this.outputlist[name]=value1[end]
+                  return get(this.outputlist,name,0)
+               else
+                  return println(name, "is not Output")
+               end
+            elseif(isa(name,Array))
+               valuelist=Any[]
+               for x in name
+                  if(haskey(this.outputlist,x))
+                     value=this.getSolutions(x)
+                     value1=value[1]
+                     this.outputlist[x]=value1[end]
+                     push!(valuelist,value1[end])
+                  else
+                     return println(x, "is not Output")
+                  end
+               end
+               return valuelist
+            end
          end
       end
 
@@ -280,6 +390,28 @@ type OMCSession
          end
       end
 
+      this.setInputs = function (name)
+         if(isa(name,String))
+            value=split(name,"=")
+            if(haskey(this.inputlist,value[1]))
+               this.inputlist[value[1]]=value[2]
+               this.overridevariables[value[1]]=value[2]
+            else
+               return println(value[1], "  is not a Input")
+            end
+         elseif(isa(name,Array))
+            for var in name
+               value=split(var,"=")
+               if(haskey(this.inputlist,value[1]))
+                  this.inputlist[value[1]]=value[2]
+                  this.overridevariables[value[1]]=value[2]
+               else
+                  return println(value[1], "  is not a Input")
+               end
+            end
+         end
+      end
+
       function xmlparse(this)
          if(isfile(this.xmlfile))
             xdoc = parse_file(this.xmlfile)
@@ -316,6 +448,15 @@ type OMCSession
                         end
                         if(scalar["variability"]=="parameter")
                            this.parameterlist[scalar["name"]]=scalar["value"]
+                        end
+                        if(scalar["variability"]=="continuous")
+                           this.continuouslist[scalar["name"]]=scalar["value"]
+                        end
+                        if(scalar["causality"]=="input")
+                           this.inputlist[scalar["name"]]=scalar["value"]
+                        end
+                        if(scalar["causality"]=="output")
+                           this.outputlist[scalar["name"]]=scalar["value"]
                         end
                         push!(this.quantitieslist,scalar )
                      end
