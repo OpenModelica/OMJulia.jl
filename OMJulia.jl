@@ -35,6 +35,7 @@ type OMCSession
    sendExpression::Function
    ModelicaSystem::Function
    xmlparse::Function
+   createcsvdata::Function
    getQuantities::Function
    getParameters::Function
    getSimulationOptions::Function
@@ -47,6 +48,7 @@ type OMCSession
    setInputs::Function
    simulate::Function
    simulationFlag
+   inputFlag
    simulateOptions
    overridevariables
    tempdir
@@ -55,6 +57,7 @@ type OMCSession
    filepath
    modelname
    xmlfile
+   csvfile
    quantitieslist
    parameterlist
    inputlist
@@ -76,6 +79,8 @@ type OMCSession
       this.modelname=""
       this.resultfile=""
       this.simulationFlag=""
+      this.inputFlag="false"
+      this.csvfile=""
       this.tempdir=""
       args2="--interactive=zmq"
       args3="+z=julia."
@@ -123,7 +128,12 @@ type OMCSession
          else
             return println(filename, "! NotFound")
          end
+         #this.tempdir=replace(joinpath(pwd(),join(["zz_",randstring(5),".tmp"])),"\\","/")
+         #mkdir(this.tempdir)
          this.tempdir=replace(mktempdir(pwd()),"\\","/")
+         if(!isdir(this.tempdir))
+            return println(this.tempdir, " cannot be created")
+         end
          this.sendExpression("cd(\""*this.tempdir*"\")")
          buildmodelexpr=join(["buildModel(",modelname,")"])
          buildModelmsg=this.sendExpression(buildmodelexpr)
@@ -194,10 +204,10 @@ type OMCSession
             if (name==nothing)
                for name in keys(this.continuouslist)
                   ## failing for variables with $ sign
-                  # println(name)
-                  # value=this.getSolutions(name)
-                  # value1=value[1]
-                  # this.continuouslist[name]=value1[end]
+                  ## println(name)
+                  value=this.getSolutions(name)
+                  value1=value[1]
+                  this.continuouslist[name]=value1[end]
                end
                return this.continuouslist
             elseif(isa(name,String))
@@ -207,7 +217,7 @@ type OMCSession
                   this.continuouslist[name]=value1[end]
                   return get(this.continuouslist,name,0)
                else
-                  return println(name, "is not continuous")
+                  return println(name, "  is not continuous")
                end
             elseif(isa(name,Array))
                continuousvaluelist=Any[]
@@ -218,7 +228,7 @@ type OMCSession
                      this.continuouslist[x]=value1[end]
                      push!(continuousvaluelist,value1[end])
                   else
-                     return println(x, "is not continuous")
+                     return println(x, "  is not continuous")
                   end
                end
                return continuousvaluelist
@@ -297,12 +307,22 @@ type OMCSession
                      val=join([k,"=",this.overridevariables[k]])
                      push!(overridelist,val)
                   end
-                  #println(overridelist)
                   overridevar=join(["-override=",join(overridelist,",")])
-                  #println(overridevar)
-                  run(`$getexefile $overridevar`)
+                  if (this.inputFlag=="true")
+                     createcsvdata(this)
+                     csvinput=join(["-csvInput=",this.csvfile])
+                     run(`$getexefile $overridevar $csvinput`)
+                  else
+                     run(`$getexefile $overridevar`)
+                  end
                else
-                  run(`$getexefile`)
+                  if (this.inputFlag=="true")
+                     createcsvdata(this)
+                     csvinput=join(["-csvInput=",this.csvfile])
+                     run(`$getexefile $csvinput`)
+                  else
+                     run(`$getexefile`)
+                  end
                end
                this.resultfile=replace(joinpath(this.tempdir,join([this.modelname,"_res.mat"])),"\\","/")
                this.simulationFlag="True"
@@ -325,15 +345,15 @@ type OMCSession
                simres=this.sendExpression("readSimulationResult(\""* this.resultfile * "\","* resultvar *")")
                data=parse(simres)
                this.sendExpression("closeSimulationResultFile()")
-               return [plotdata.args for plotdata in data.args]
+               return [convert(Array{Float64,1},plotdata.args) for plotdata in data.args]
             elseif(isa(name,Array))
                resultvar=join(["{",join(name,","),"}"])
                #println(resultvar)
                simres=this.sendExpression("readSimulationResult(\""* this.resultfile * "\","* resultvar *")")
                data=parse(simres)
-               plotdata=Any[]
+               plotdata=Array{Float64,1}[]
                for item in data.args
-                  push!(plotdata,item.args)
+                  push!(plotdata,convert(Array{Float64,1},item.args))
                end
                this.sendExpression("closeSimulationResultFile()")
                return plotdata
@@ -345,6 +365,7 @@ type OMCSession
 
       this.setParameters = function (name)
          if(isa(name,String))
+            name=strip_space(name)
             value=split(name,"=")
             #setxmlfileexpr="setInitXmlStartValue(\""* this.xmlfile * "\",\""* value[1]* "\",\""*value[2]*"\",\""*this.xmlfile*"\")"
             #println(haskey(this.parameterlist, value[1]))
@@ -356,6 +377,7 @@ type OMCSession
             end
             #this.sendExpression(setxmlfileexpr)
          elseif(isa(name,Array))
+            name=strip_space(name)
             for var in name
                value=split(var,"=")
                if(haskey(this.parameterlist,value[1]))
@@ -370,21 +392,23 @@ type OMCSession
 
       this.setSimulationOptions = function (name)
          if(isa(name,String))
+            name=strip_space(name)
             value=split(name,"=")
             if(haskey(this.simulateOptions,value[1]))
                this.simulateOptions[value[1]]=value[2]
                this.overridevariables[value[1]]=value[2]
             else
-               return println(value[1], "is not a SimulationOption")
+               return println(value[1], "  is not a SimulationOption")
             end
          elseif(isa(name,Array))
+            name=strip_space(name)
             for var in name
                value=split(var,"=")
                if(haskey(this.simulateOptions,value[1]))
                   this.simulateOptions[value[1]]=value[2]
                   this.overridevariables[value[1]]=value[2]
                else
-                  return println(value[1], "is not a SimulationOption")
+                  return println(value[1], "  is not a SimulationOption")
                end
             end
          end
@@ -392,24 +416,82 @@ type OMCSession
 
       this.setInputs = function (name)
          if(isa(name,String))
+            name=strip_space(name)
             value=split(name,"=")
             if(haskey(this.inputlist,value[1]))
-               this.inputlist[value[1]]=value[2]
-               this.overridevariables[value[1]]=value[2]
+               newval=parse(value[2])
+               if(isa(newval, Expr))
+                  this.inputlist[value[1]]=[v.args for v in newval.args]
+               else
+                  this.inputlist[value[1]]=value[2]
+               end
+               this.inputFlag="true"
             else
                return println(value[1], "  is not a Input")
             end
          elseif(isa(name,Array))
+            name=strip_space(name)
             for var in name
                value=split(var,"=")
                if(haskey(this.inputlist,value[1]))
-                  this.inputlist[value[1]]=value[2]
-                  this.overridevariables[value[1]]=value[2]
+                  if(isa(newval, Expr))
+                     this.inputlist[value[1]]=newval.args
+                  else
+                     this.inputlist[value[1]]=value[2]
+                  end
+                  #this.overridevariables[value[1]]=value[2]
+                  this.inputFlag="true"
                else
                   return println(value[1], "  is not a Input")
                end
             end
          end
+      end
+
+      function strip_space(name)
+         if (isa(name,String))
+            return filter(x->!isspace(x),name)
+         elseif(isa(name,Array))
+            return [filter(x->!isspace(x),s) for s in name]
+         end
+      end
+
+      function createcsvdata(this)
+         this.csvfile=joinpath(this.tempdir,join([this.modelname,".csv"]))
+         file = open(this.csvfile,"w")
+         write(file,join(["time",",",join(keys(this.inputlist),","),",","end","\n"]))
+         value=[this.simulateOptions["startTime"],this.simulateOptions["stopTime"]]
+         if(length(this.inputlist)==1)
+            for val in values(this.inputlist)
+               if(isa(val,Array))
+                  for i in val
+                     write(file,join(i,","),",")
+                     write(file,"0","\n")
+                  end
+               elseif(isa(val,SubString{String}))
+                  writecsvdata(value,file)
+               end
+            end
+         end
+         if(length(this.inputlist)>1)
+            writecsvdata(value,file)
+         end
+         close(file)
+      end
+
+      function writecsvdata(value,csv_file)
+         for i in value
+            write(csv_file,i,",")
+            for j in values(this.inputlist)
+               if(j=="None")
+                  write(csv_file,"0",",")
+               else
+                  write(csv_file,j,",")
+               end
+            end
+            write(csv_file,"0","\n")
+         end
+         #close(csv_file)
       end
 
       function xmlparse(this)
