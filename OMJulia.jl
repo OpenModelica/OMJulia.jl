@@ -434,6 +434,7 @@ type OMCSession
             for var in name
                value=split(var,"=")
                if(haskey(this.inputlist,value[1]))
+			      newval=parse(value[2])
                   if(isa(newval, Expr))
                      this.inputlist[value[1]]=newval.args
                   else
