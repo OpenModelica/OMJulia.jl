@@ -434,9 +434,9 @@ type OMCSession
             for var in name
                value=split(var,"=")
                if(haskey(this.inputlist,value[1]))
-			      newval=parse(value[2])
+                  newval=parse(value[2])
                   if(isa(newval, Expr))
-                     this.inputlist[value[1]]=newval.args
+                     this.inputlist[value[1]]=[v.args for v in newval.args]
                   else
                      this.inputlist[value[1]]=value[2]
                   end
@@ -461,21 +461,74 @@ type OMCSession
          this.csvfile=joinpath(this.tempdir,join([this.modelname,".csv"]))
          file = open(this.csvfile,"w")
          write(file,join(["time",",",join(keys(this.inputlist),","),",","end","\n"]))
-         value=[this.simulateOptions["startTime"],this.simulateOptions["stopTime"]]
-         if(length(this.inputlist)==1)
-            for val in values(this.inputlist)
-               if(isa(val,Array))
-                  for i in val
-                     write(file,join(i,","),",")
-                     write(file,"0","\n")
-                  end
-               elseif(isa(val,SubString{String}))
-                  writecsvdata(value,file)
+         value=values(this.inputlist)
+		 
+         time=Any[]
+         for val in value
+            if(isa(val,Array))
+               checkflag="true"
+               for v in val
+                  push!(time,v[1])
                end
-            end
+            end		
          end
-         if(length(this.inputlist)>1)
-            writecsvdata(value,file)
+		 
+         if(length(time)==0)
+            push!(time,this.simulateOptions["startTime"])  
+            push!(time,this.simulateOptions["stopTime"])            			
+         end
+        
+         previousvalue=Dict()
+         for i in sort(time)
+			if(isa(i,SubString{String}))
+			   write(file,i,",")
+			else
+			   write(file,join(i,","),",")
+			end 
+            listcount=1
+            for val in value
+               if(isa(val,Array))
+                  newval=val
+                  count=1
+                  found="false"
+                  for v in newval
+                     if(i==v[1])
+						data=eval(v[2])
+                        write(file,join(data,","),",")
+                        previousvalue[listcount]=data
+                        deleteat!(newval,count)
+                        found="true"
+                        break
+                     end
+                     count=count+1
+                  end
+                  if(found=="false")
+                     write(file,join(previousvalue[listcount],","),",")
+                  end
+               end
+			   
+			   if(isa(val,String))
+				  if(val=="None")
+			          val="0"
+                  else
+                      val=val
+                  end					  
+                  write(file,val,",")
+                  previousvalue[listcount]=val
+               end
+			   
+               if(isa(val,SubString{String}))
+				  if(val=="None")
+				     val="0"
+				  else
+				     val=val
+			      end
+                  write(file,val,",")
+                  previousvalue[listcount]=val
+               end
+               listcount=listcount+1
+            end
+            write(file,"0","\n")
          end
          close(file)
       end
