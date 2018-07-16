@@ -461,7 +461,8 @@ type OMCSession
          this.csvfile=joinpath(this.tempdir,join([this.modelname,".csv"]))
          file = open(this.csvfile,"w")
          write(file,join(["time",",",join(keys(this.inputlist),","),",","end","\n"]))
-         value=values(this.inputlist)
+		 csvdata=deepcopy(this.inputlist)
+         value=values(csvdata)
 		 
          time=Any[]
          for val in value
