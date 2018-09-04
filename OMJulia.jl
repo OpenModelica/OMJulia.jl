@@ -29,6 +29,7 @@ CONDITIONS OF OSMC-PL.
 module OMJulia
 using ZMQ
 using Compat
+using DataStructures
 using LightXML
 
 type OMCSession
@@ -47,6 +48,12 @@ type OMCSession
    setSimulationOptions::Function
    setInputs::Function
    simulate::Function
+   linearize::Function
+   getLinearizationOptions::Function
+   setLinearizationOptions::Function
+   getLinearInputs::Function
+   getLinearOutputs::Function
+   getLinearStates::Function
    simulationFlag
    inputFlag
    simulateOptions
@@ -63,6 +70,14 @@ type OMCSession
    inputlist
    outputlist
    continuouslist
+   linearOptions
+   linearfile
+   linearFlag
+   linearmodelname
+   linearinputs
+   linearoutputs
+   linearstates
+   linearquantitylist
    context
    socket
    function OMCSession()
@@ -82,6 +97,14 @@ type OMCSession
       this.inputFlag="false"
       this.csvfile=""
       this.tempdir=""
+      this.linearfile=""
+      this.linearFlag="false"
+      this.linearmodelname=""
+      this.linearquantitylist=Any[]
+      this.linearinputs=Any[]
+      this.linearoutputs=Any[]
+      this.linearstates=Any[]
+      this.linearOptions=Dict("startTime"=>"0.0", "stopTime"=>"1.0", "numberOfIntervals"=>"500", "stepSize"=>"0.002", "tolerance"=> "1e-6")
       args2="--interactive=zmq"
       args3="+z=julia."
       args4=randstring(10)
@@ -103,7 +126,7 @@ type OMCSession
          end
          portfile=join(["openmodelica.",ENV["USER"],".port.julia.",args4])
       end
-      sleep(0.5)
+      sleep(1)
       fullpath=joinpath(tempdir(),portfile)
       this.context=ZMQ.Context()
       this.socket =ZMQ.Socket(this.context, REQ)
@@ -205,9 +228,13 @@ type OMCSession
                for name in keys(this.continuouslist)
                   ## failing for variables with $ sign
                   ## println(name)
-                  value=this.getSolutions(name)
-                  value1=value[1]
-                  this.continuouslist[name]=value1[end]
+                  try
+                     value=this.getSolutions(name)
+                     value1=value[1]
+                     this.continuouslist[name]=value1[end]
+                  catch Exception
+                     println(Exception)
+                  end
                end
                return this.continuouslist
             elseif(isa(name,String))
@@ -291,7 +318,7 @@ type OMCSession
       end
 
       this.simulate = function()
-         println(this.xmlfile)
+         #println(this.xmlfile)
          if(isfile(this.xmlfile))
             if (Compat.Sys.iswindows())
                getexefile=replace(joinpath(this.tempdir,join([this.modelname,".exe"])),"\\","/")
@@ -461,9 +488,9 @@ type OMCSession
          this.csvfile=joinpath(this.tempdir,join([this.modelname,".csv"]))
          file = open(this.csvfile,"w")
          write(file,join(["time",",",join(keys(this.inputlist),","),",","end","\n"]))
-		 csvdata=deepcopy(this.inputlist)
+         csvdata=deepcopy(this.inputlist)
          value=values(csvdata)
-		 
+
          time=Any[]
          for val in value
             if(isa(val,Array))
@@ -471,21 +498,21 @@ type OMCSession
                for v in val
                   push!(time,v[1])
                end
-            end		
+            end
          end
-		 
+
          if(length(time)==0)
-            push!(time,this.simulateOptions["startTime"])  
-            push!(time,this.simulateOptions["stopTime"])            			
+            push!(time,this.simulateOptions["startTime"])
+            push!(time,this.simulateOptions["stopTime"])
          end
-        
+
          previousvalue=Dict()
          for i in sort(time)
-			if(isa(i,SubString{String}))
-			   write(file,i,",")
-			else
-			   write(file,join(i,","),",")
-			end 
+            if(isa(i,SubString{String}))
+               write(file,i,",")
+            else
+               write(file,join(i,","),",")
+            end
             listcount=1
             for val in value
                if(isa(val,Array))
@@ -494,7 +521,7 @@ type OMCSession
                   found="false"
                   for v in newval
                      if(i==v[1])
-						data=eval(v[2])
+                        data=eval(v[2])
                         write(file,join(data,","),",")
                         previousvalue[listcount]=data
                         deleteat!(newval,count)
@@ -507,23 +534,23 @@ type OMCSession
                      write(file,join(previousvalue[listcount],","),",")
                   end
                end
-			   
-			   if(isa(val,String))
-				  if(val=="None")
-			          val="0"
+
+               if(isa(val,String))
+                  if(val=="None")
+                     val="0"
                   else
-                      val=val
-                  end					  
+                     val=val
+                  end
                   write(file,val,",")
                   previousvalue[listcount]=val
                end
-			   
+
                if(isa(val,SubString{String}))
-				  if(val=="None")
-				     val="0"
-				  else
-				     val=val
-			      end
+                  if(val=="None")
+                     val="0"
+                  else
+                     val=val
+                  end
                   write(file,val,",")
                   previousvalue[listcount]=val
                end
@@ -547,6 +574,150 @@ type OMCSession
             write(csv_file,"0","\n")
          end
          #close(csv_file)
+      end
+
+      this.linearize = function()
+         this.sendExpression("setCommandLineOptions(\"+generateSymbolicLinearization\")")
+         overridelist=Any[]
+         for k in keys(this.overridevariables)
+            val=join([k,"=",this.overridevariables[k]])
+            push!(overridelist,val)
+         end
+         overridelinear=Any[]
+         for t in keys(this.linearOptions)
+            val=join([t,"=",this.linearOptions[t]])
+            push!(overridelinear,val)
+         end
+
+         if (this.inputFlag=="true")
+            createcsvdata(this)
+            csvinput=join(["-csvInput=",this.csvfile])
+         else
+            csvinput="";
+         end
+         if (length(overridelist)>0)
+            overridevar=join(["-override=",join(overridelist,",")])
+         else
+            overridevar="";
+         end
+
+         linearexpr=join(["linearize(",this.modelname,",",join(overridelinear,","),",","simflags=","\"",csvinput," ",overridevar,"\"",")"])
+         #println(linearexpr)
+         this.sendExpression(linearexpr)
+         this.resultfile=replace(joinpath(this.tempdir,join([this.modelname,"_res.mat"])),"\\","/")
+         this.linearmodelname=join(["linear_",this.modelname])
+         this.linearfile=joinpath(this.tempdir,join([this.linearmodelname,".mo"]))
+         if(isfile(this.linearfile))
+            loadmsg=this.sendExpression("loadFile(\""*this.linearfile*"\")")
+            if(!parse(loadmsg))
+               return this.sendExpression("getErrorString()")
+            end
+            cNames =this.sendExpression("getClassNames()")
+            linearmodelname=parse(cNames)
+            #println(linearmodelname.args[1])
+            buildmodelexpr=join(["buildModel(",linearmodelname.args[1],")"])
+            buildModelmsg=this.sendExpression(buildmodelexpr)
+            parsebuilexp=parse(buildModelmsg)
+
+            if(!isempty(parsebuilexp.args[2]))
+               this.linearFlag="true"
+               this.xmlfile=replace(joinpath(this.tempdir,parsebuilexp.args[2]),"\\","/")
+               xmlparse(this)
+               linearMatrix = getLinearMatrix(this)
+               return linearMatrix
+            else
+               return this.sendExpression("getErrorString()")
+            end
+         else
+            errormsg=this.sendExpression("getErrorString()")
+            println(errormsg)
+         end
+      end
+
+      function getLinearMatrix(this)
+         matrix_A=OrderedDict()
+         matrix_B=OrderedDict()
+         matrix_C=OrderedDict()
+         matrix_D=OrderedDict()
+         for i in this.linearquantitylist
+            name=i["name"]
+            value=i["value"]
+            if(i["variability"]=="parameter")
+               if(name[1]=='A')
+                  matrix_A[name]=value
+               end
+               if(name[1]=='B')
+                  matrix_B[name]=value
+               end
+               if(name[1]=='C')
+                  matrix_C[name]=value
+               end
+               if(name[1]=='D')
+                  matrix_D[name]=value
+               end
+            end
+         end
+         FullLinearMatrix=Any[]
+         tmpMatrix_A=getLinearMatrixValues(matrix_A)
+         tmpMatrix_B=getLinearMatrixValues(matrix_B)
+         tmpMatrix_C=getLinearMatrixValues(matrix_C)
+         tmpMatrix_D=getLinearMatrixValues(matrix_D)
+         push!(FullLinearMatrix,tmpMatrix_A)
+         push!(FullLinearMatrix,tmpMatrix_B)
+         push!(FullLinearMatrix,tmpMatrix_C)
+         push!(FullLinearMatrix,tmpMatrix_D)
+         return FullLinearMatrix
+      end
+
+      function getLinearMatrixValues(matrix_name)
+         v=[i for i in keys(matrix_name)]
+         dim=v[end]
+         tmpMatrix=Matrix(parse(Int,dim[3]),parse(Int,dim[5]))
+         for j in keys(matrix_name)
+            val=j;
+            row=parse(Int,val[3])
+            col=parse(Int,val[5])
+            tmpMatrix[row,col]=matrix_name[j]
+         end
+         return tmpMatrix
+      end
+
+      this.getLinearizationOptions = function()
+         return this.linearOptions
+      end
+
+      this.getLinearInputs = function()
+         return this.linearinputs
+      end
+
+      this.getLinearOutputs = function()
+         return this.linearoutputs
+      end
+
+      this.getLinearStates = function()
+         return this.linearstates
+      end
+
+      this.setLinearizationOptions = function (name)
+         if(isa(name,String))
+            name=strip_space(name)
+            value=split(name,"=")
+            if(haskey(this.linearOptions,value[1]))
+               this.linearOptions[value[1]]=value[2]
+            else
+               return println(value[1], "  is not a LinearizationOption")
+            end
+         elseif(isa(name,Array))
+            name=strip_space(name)
+            for var in name
+               value=split(var,"=")
+               if(haskey(this.linearOptions,value[1]))
+                  this.linearOptions[value[1]]=value[2]
+               else
+                  return println(value[1], "  is not a LinearizationOption")
+               end
+            end
+         end
       end
 
       function xmlparse(this)
@@ -595,7 +766,26 @@ type OMCSession
                         if(scalar["causality"]=="output")
                            this.outputlist[scalar["name"]]=scalar["value"]
                         end
-                        push!(this.quantitieslist,scalar )
+
+                        if(scalar["alias"]=="alias")
+                           #println("Linearinputs")
+                           name=scalar["name"]
+                           if (name[2] == 'x')
+                              #println(name[3:end-1])
+                              push!(this.linearstates,name[4:end-1])
+                           end
+                           if (name[2] == 'u')
+                              push!(this.linearinputs,name[4:end-1])
+                           end
+                           if (name[2] == 'y')
+                              push!(this.linearoutputs,name[4:end-1])
+                           end
+                        end
+                        if(this.linearFlag=="true")
+                           push!(this.linearquantitylist,scalar)
+                        else
+                           push!(this.quantitieslist,scalar)
+                        end
                      end
                   end
                end
