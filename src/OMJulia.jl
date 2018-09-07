@@ -657,7 +657,7 @@ type OMCSession
                end
             end
          end
-         FullLinearMatrix=Any[]
+         FullLinearMatrix=Array{Float64,2}[]
          tmpMatrix_A=getLinearMatrixValues(matrix_A)
          tmpMatrix_B=getLinearMatrixValues(matrix_B)
          tmpMatrix_C=getLinearMatrixValues(matrix_C)
@@ -677,7 +677,7 @@ type OMCSession
             val=j;
             row=parse(Int,val[3])
             col=parse(Int,val[5])
-            tmpMatrix[row,col]=matrix_name[j]
+            tmpMatrix[row,col]=parse(Float64,matrix_name[j])
          end
          return tmpMatrix
       end
@@ -767,20 +767,22 @@ type OMCSession
                            this.outputlist[scalar["name"]]=scalar["value"]
                         end
 
-                        if(scalar["alias"]=="alias")
-                           #println("Linearinputs")
-                           name=scalar["name"]
-                           if (name[2] == 'x')
-                              #println(name[3:end-1])
-                              push!(this.linearstates,name[4:end-1])
-                           end
-                           if (name[2] == 'u')
-                              push!(this.linearinputs,name[4:end-1])
-                           end
-                           if (name[2] == 'y')
-                              push!(this.linearoutputs,name[4:end-1])
+                        if(this.linearFlag=="true")
+                           if(scalar["alias"]=="alias")
+                              name=scalar["name"]
+                              if (name[2] == 'x')
+                                 #println(name[3:end-1])
+                                 push!(this.linearstates,name[4:end-1])
+                              end
+                              if (name[2] == 'u')
+                                 push!(this.linearinputs,name[4:end-1])
+                              end
+                              if (name[2] == 'y')
+                                 push!(this.linearoutputs,name[4:end-1])
+                              end
                            end
                         end
+
                         if(this.linearFlag=="true")
                            push!(this.linearquantitylist,scalar)
                         else
