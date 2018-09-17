@@ -31,6 +31,7 @@ using ZMQ
 using Compat
 using DataStructures
 using LightXML
+using DataFrames
 
 type OMCSession
    sendExpression::Function
@@ -38,6 +39,7 @@ type OMCSession
    xmlparse::Function
    createcsvdata::Function
    getQuantities::Function
+   showQuantities::Function
    getParameters::Function
    getSimulationOptions::Function
    getSolutions::Function
@@ -54,6 +56,7 @@ type OMCSession
    getLinearInputs::Function
    getLinearOutputs::Function
    getLinearStates::Function
+   sensitivity::Function
    simulationFlag
    inputFlag
    simulateOptions
@@ -153,7 +156,7 @@ type OMCSession
          end
          #this.tempdir=replace(joinpath(pwd(),join(["zz_",randstring(5),".tmp"])),"\\","/")
          #mkdir(this.tempdir)
-         this.tempdir=replace(mktempdir(pwd()),"\\","/")
+         this.tempdir=replace(mktempdir(),"\\","/")
          if(!isdir(this.tempdir))
             return println(this.tempdir, " cannot be created")
          end
@@ -192,6 +195,30 @@ type OMCSession
             # return qlist
          end
       end
+
+      ## helper function to return getQuantities as table
+      function df_from_dicts(arr::AbstractArray; missing_value="missing")
+         cols = Set{Symbol}()
+         for di in arr union!(cols, keys(di)) end
+         df = DataFrame()
+         for col=cols
+            df[col] = [get(di, col, missing_value) for di=arr]
+         end
+         return df
+      end
+
+      ## function which returns getQuantities as table
+      this.showQuantities = function(name=nothing)
+         q = this.getQuantities(name);
+         # assuming that the keys of the first dictionary is representative for them all
+         sym = map(Symbol,keys(q[1]))
+         arr = []
+         for d in q
+            push!(arr,Dict(zip(sym,values(d))))
+         end
+         return df_from_dicts(arr)
+      end
+
 
       this.getParameters = function (name=nothing)
          if(name==nothing)
@@ -338,17 +365,17 @@ type OMCSession
                   if (this.inputFlag=="true")
                      createcsvdata(this)
                      csvinput=join(["-csvInput=",this.csvfile])
-                     run(`$getexefile $overridevar $csvinput`)
+                     run(pipeline(`$getexefile $overridevar $csvinput`,stdout="log.txt",stderr="error.txt"))
                   else
-                     run(`$getexefile $overridevar`)
+                     run(pipeline(`$getexefile $overridevar`,stdout="log.txt",stderr="error.txt"))
                   end
                else
                   if (this.inputFlag=="true")
                      createcsvdata(this)
                      csvinput=join(["-csvInput=",this.csvfile])
-                     run(`$getexefile $csvinput`)
+                     run(pipeline(`$getexefile $csvinput`,stdout="log.txt",stderr="error.txt"))
                   else
-                     run(`$getexefile`)
+                     run(pipeline(`$getexefile`,stdout="log.txt",stderr="error.txt"))
                   end
                end
                this.resultfile=replace(joinpath(this.tempdir,join([this.modelname,"_res.mat"])),"\\","/")
@@ -361,105 +388,158 @@ type OMCSession
          end
       end
 
-      this.getSolutions = function(name=nothing)
-         if(!isempty(this.resultfile))
-            if(name==nothing)
-               simresultvars=this.sendExpression("readSimulationResultVars(\"" * this.resultfile * "\")")
-               parsesimresultvars=parse(simresultvars)
-               return parsesimresultvars.args
-            elseif(isa(name,String))
-               resultvar=join(["{",name,"}"])
-               simres=this.sendExpression("readSimulationResult(\""* this.resultfile * "\","* resultvar *")")
-               data=parse(simres)
-               this.sendExpression("closeSimulationResultFile()")
-               return [convert(Array{Float64,1},plotdata.args) for plotdata in data.args]
-            elseif(isa(name,Array))
-               resultvar=join(["{",join(name,","),"}"])
-               #println(resultvar)
-               simres=this.sendExpression("readSimulationResult(\""* this.resultfile * "\","* resultvar *")")
-               data=parse(simres)
-               plotdata=Array{Float64,1}[]
-               for item in data.args
-                  push!(plotdata,convert(Array{Float64,1},item.args))
-               end
-               this.sendExpression("closeSimulationResultFile()")
-               return plotdata
-            end
-         else
-            return println("Model not Simulated, Simulate the model to get the results")
-         end
-      end
 
-      this.setParameters = function (name)
-         if(isa(name,String))
-            name=strip_space(name)
-            value=split(name,"=")
-            #setxmlfileexpr="setInitXmlStartValue(\""* this.xmlfile * "\",\""* value[1]* "\",\""*value[2]*"\",\""*this.xmlfile*"\")"
-            #println(haskey(this.parameterlist, value[1]))
-            if(haskey(this.parameterlist,value[1]))
-               this.parameterlist[value[1]]=value[2]
-               this.overridevariables[value[1]]=value[2]
-            else
-               return println(value[1], "is not a parameter")
+      this.sensitivity=function(Vp,Vv,Ve=[1e-2])
+         """
+         Method for computing numeric sensitivity of OpenModelica object
+
+            Arguments:
+            ----------
+            1st arg: Vp  # Array of strings of Modelica Parameter names
+            2nd arg: Vv  # Array of strings of Modelica Variable names
+            3rd arg: Ve  # Array of float Excitations of parameters; defaults to scalar 1e-2
+
+            Returns:
+            --------
+            1st return: VSname # Vector of Sensitivity names
+            2nd return: Sarray # Array of sensitivies: vector of elements per parameter,
+            each element containing time series per variable
+            """
+            # Production quality code should check type and form of input arguments
+            #
+            Ve = map(Float64,Ve) # converting eVements of excitation to floats
+            nVp = length(Vp) # number of parameter names
+            nVe = length(Ve) # number of excitations in parameters
+            # Adjusting size of Ve to that of Vp
+            if nVe < nVp
+               push!(Ve,Ve[end]*ones(nVp-nVe)...) # extends Ve by adding last eVement of Ve
+            elseif nVe > nVp
+               Ve = Ve[1:nVp] # truncates Ve to same length as Vp
             end
-            #this.sendExpression(setxmlfileexpr)
-         elseif(isa(name,Array))
-            name=strip_space(name)
-            for var in name
-               value=split(var,"=")
+            # Nominal parameters p0
+            par0 = [parse(Float64,pp) for pp in this.getParameters(Vp)]
+            # eXcitation parameters parX
+            parX = [par0[i]*(1+Ve[i]) for i in 1:nVp]
+            # Combine parameter names and parameter values into vector of strings
+            Vpar0 = [Vp[i]*"=$(par0[i])" for i in 1:nVp]
+            VparX = [Vp[i]*"=$(parX[i])" for i in 1:nVp]
+            # Simulate nominal system
+            this.simulate()
+            # Get nominal SOLutions of variabVes of interest (Vv), converted to 2D array
+            sol0 = this.getSolutions(Vv)
+            # Get vector of eXcited SOLutions (2D arrays), one for each parameter (Vp)
+            solX = Vector{Array{Array{Float64,1},1}}()
+            #
+            for p in VparX
+               # change to excited parameter
+               this.setParameters(p)
+               # simulate perturbed system
+               this.simulate()
+               # get eXcited SOLutions (Vv) as 2D array, and append to list
+               push!(solX,this.getSolutions(Vv))
+               # reset parameters to nominal values
+               this.setParameters(Vpar0)
+            end
+            #
+            # Compute sensitivities and add to vector, one 2D array per parameter (Vp)
+            VSname = Vector{Vector{String}}()
+            VSarray = Vector{Array{Array{Float64,1},1}}() # same shape as solX
+            for (i,sol) in enumerate(solX)
+               push!(VSarray, ((sol-sol0)/(par0[i]*Ve[i])))
+               vsname = Vector{String}()
+               for j in 1:nVp
+                  push!(vsname, "Sensitivity."*Vp[i]*"."*Vv[j])
+               end
+               push!(VSname,vsname)
+            end
+            return VSname, VSarray
+         end
+
+
+         this.getSolutions = function(name=nothing)
+            if(!isempty(this.resultfile))
+               if(name==nothing)
+                  simresultvars=this.sendExpression("readSimulationResultVars(\"" * this.resultfile * "\")")
+                  parsesimresultvars=parse(simresultvars)
+                  return parsesimresultvars.args
+               elseif(isa(name,String))
+                  resultvar=join(["{",name,"}"])
+                  simres=this.sendExpression("readSimulationResult(\""* this.resultfile * "\","* resultvar *")")
+                  data=parse(simres)
+                  this.sendExpression("closeSimulationResultFile()")
+                  return [convert(Array{Float64,1},plotdata.args) for plotdata in data.args]
+               elseif(isa(name,Array))
+                  resultvar=join(["{",join(name,","),"}"])
+                  #println(resultvar)
+                  simres=this.sendExpression("readSimulationResult(\""* this.resultfile * "\","* resultvar *")")
+                  data=parse(simres)
+                  plotdata=Array{Float64,1}[]
+                  for item in data.args
+                     push!(plotdata,convert(Array{Float64,1},item.args))
+                  end
+                  this.sendExpression("closeSimulationResultFile()")
+                  return plotdata
+               end
+            else
+               return println("Model not Simulated, Simulate the model to get the results")
+            end
+         end
+
+         this.setParameters = function (name)
+            if(isa(name,String))
+               name=strip_space(name)
+               value=split(name,"=")
+               #setxmlfileexpr="setInitXmlStartValue(\""* this.xmlfile * "\",\""* value[1]* "\",\""*value[2]*"\",\""*this.xmlfile*"\")"
+               #println(haskey(this.parameterlist, value[1]))
                if(haskey(this.parameterlist,value[1]))
                   this.parameterlist[value[1]]=value[2]
                   this.overridevariables[value[1]]=value[2]
                else
                   return println(value[1], "is not a parameter")
                end
+               #this.sendExpression(setxmlfileexpr)
+            elseif(isa(name,Array))
+               name=strip_space(name)
+               for var in name
+                  value=split(var,"=")
+                  if(haskey(this.parameterlist,value[1]))
+                     this.parameterlist[value[1]]=value[2]
+                     this.overridevariables[value[1]]=value[2]
+                  else
+                     return println(value[1], "is not a parameter")
+                  end
+               end
             end
          end
-      end
 
-      this.setSimulationOptions = function (name)
-         if(isa(name,String))
-            name=strip_space(name)
-            value=split(name,"=")
-            if(haskey(this.simulateOptions,value[1]))
-               this.simulateOptions[value[1]]=value[2]
-               this.overridevariables[value[1]]=value[2]
-            else
-               return println(value[1], "  is not a SimulationOption")
-            end
-         elseif(isa(name,Array))
-            name=strip_space(name)
-            for var in name
-               value=split(var,"=")
+         this.setSimulationOptions = function (name)
+            if(isa(name,String))
+               name=strip_space(name)
+               value=split(name,"=")
                if(haskey(this.simulateOptions,value[1]))
                   this.simulateOptions[value[1]]=value[2]
                   this.overridevariables[value[1]]=value[2]
                else
                   return println(value[1], "  is not a SimulationOption")
                end
+            elseif(isa(name,Array))
+               name=strip_space(name)
+               for var in name
+                  value=split(var,"=")
+                  if(haskey(this.simulateOptions,value[1]))
+                     this.simulateOptions[value[1]]=value[2]
+                     this.overridevariables[value[1]]=value[2]
+                  else
+                     return println(value[1], "  is not a SimulationOption")
+                  end
+               end
             end
          end
-      end
 
-      this.setInputs = function (name)
-         if(isa(name,String))
-            name=strip_space(name)
-            value=split(name,"=")
-            if(haskey(this.inputlist,value[1]))
-               newval=parse(value[2])
-               if(isa(newval, Expr))
-                  this.inputlist[value[1]]=[v.args for v in newval.args]
-               else
-                  this.inputlist[value[1]]=value[2]
-               end
-               this.inputFlag="true"
-            else
-               return println(value[1], "  is not a Input")
-            end
-         elseif(isa(name,Array))
-            name=strip_space(name)
-            for var in name
-               value=split(var,"=")
+         this.setInputs = function (name)
+            if(isa(name,String))
+               name=strip_space(name)
+               value=split(name,"=")
                if(haskey(this.inputlist,value[1]))
                   newval=parse(value[2])
                   if(isa(newval, Expr))
@@ -467,338 +547,353 @@ type OMCSession
                   else
                      this.inputlist[value[1]]=value[2]
                   end
-                  #this.overridevariables[value[1]]=value[2]
                   this.inputFlag="true"
                else
                   return println(value[1], "  is not a Input")
                end
-            end
-         end
-      end
-
-      function strip_space(name)
-         if (isa(name,String))
-            return filter(x->!isspace(x),name)
-         elseif(isa(name,Array))
-            return [filter(x->!isspace(x),s) for s in name]
-         end
-      end
-
-      function createcsvdata(this)
-         this.csvfile=joinpath(this.tempdir,join([this.modelname,".csv"]))
-         file = open(this.csvfile,"w")
-         write(file,join(["time",",",join(keys(this.inputlist),","),",","end","\n"]))
-         csvdata=deepcopy(this.inputlist)
-         value=values(csvdata)
-
-         time=Any[]
-         for val in value
-            if(isa(val,Array))
-               checkflag="true"
-               for v in val
-                  push!(time,v[1])
+            elseif(isa(name,Array))
+               name=strip_space(name)
+               for var in name
+                  value=split(var,"=")
+                  if(haskey(this.inputlist,value[1]))
+                     newval=parse(value[2])
+                     if(isa(newval, Expr))
+                        this.inputlist[value[1]]=[v.args for v in newval.args]
+                     else
+                        this.inputlist[value[1]]=value[2]
+                     end
+                     #this.overridevariables[value[1]]=value[2]
+                     this.inputFlag="true"
+                  else
+                     return println(value[1], "  is not a Input")
+                  end
                end
             end
          end
 
-         if(length(time)==0)
-            push!(time,this.simulateOptions["startTime"])
-            push!(time,this.simulateOptions["stopTime"])
+         function strip_space(name)
+            if (isa(name,String))
+               return filter(x->!isspace(x),name)
+            elseif(isa(name,Array))
+               return [filter(x->!isspace(x),s) for s in name]
+            end
          end
 
-         previousvalue=Dict()
-         for i in sort(time)
-            if(isa(i,SubString{String}))
-               write(file,i,",")
-            else
-               write(file,join(i,","),",")
-            end
-            listcount=1
+         function createcsvdata(this)
+            this.csvfile=joinpath(this.tempdir,join([this.modelname,".csv"]))
+            file = open(this.csvfile,"w")
+            write(file,join(["time",",",join(keys(this.inputlist),","),",","end","\n"]))
+            csvdata=deepcopy(this.inputlist)
+            value=values(csvdata)
+
+            time=Any[]
             for val in value
                if(isa(val,Array))
-                  newval=val
-                  count=1
-                  found="false"
-                  for v in newval
-                     if(i==v[1])
-                        data=eval(v[2])
-                        write(file,join(data,","),",")
-                        previousvalue[listcount]=data
-                        deleteat!(newval,count)
-                        found="true"
-                        break
-                     end
-                     count=count+1
-                  end
-                  if(found=="false")
-                     write(file,join(previousvalue[listcount],","),",")
+                  checkflag="true"
+                  for v in val
+                     push!(time,v[1])
                   end
                end
-
-               if(isa(val,String))
-                  if(val=="None")
-                     val="0"
-                  else
-                     val=val
-                  end
-                  write(file,val,",")
-                  previousvalue[listcount]=val
-               end
-
-               if(isa(val,SubString{String}))
-                  if(val=="None")
-                     val="0"
-                  else
-                     val=val
-                  end
-                  write(file,val,",")
-                  previousvalue[listcount]=val
-               end
-               listcount=listcount+1
             end
-            write(file,"0","\n")
-         end
-         close(file)
-      end
 
-      function writecsvdata(value,csv_file)
-         for i in value
-            write(csv_file,i,",")
-            for j in values(this.inputlist)
-               if(j=="None")
-                  write(csv_file,"0",",")
+            if(length(time)==0)
+               push!(time,this.simulateOptions["startTime"])
+               push!(time,this.simulateOptions["stopTime"])
+            end
+
+            previousvalue=Dict()
+            for i in sort(time)
+               if(isa(i,SubString{String}))
+                  write(file,i,",")
                else
-                  write(csv_file,j,",")
+                  write(file,join(i,","),",")
                end
+               listcount=1
+               for val in value
+                  if(isa(val,Array))
+                     newval=val
+                     count=1
+                     found="false"
+                     for v in newval
+                        if(i==v[1])
+                           data=eval(v[2])
+                           write(file,join(data,","),",")
+                           previousvalue[listcount]=data
+                           deleteat!(newval,count)
+                           found="true"
+                           break
+                        end
+                        count=count+1
+                     end
+                     if(found=="false")
+                        write(file,join(previousvalue[listcount],","),",")
+                     end
+                  end
+
+                  if(isa(val,String))
+                     if(val=="None")
+                        val="0"
+                     else
+                        val=val
+                     end
+                     write(file,val,",")
+                     previousvalue[listcount]=val
+                  end
+
+                  if(isa(val,SubString{String}))
+                     if(val=="None")
+                        val="0"
+                     else
+                        val=val
+                     end
+                     write(file,val,",")
+                     previousvalue[listcount]=val
+                  end
+                  listcount=listcount+1
+               end
+               write(file,"0","\n")
             end
-            write(csv_file,"0","\n")
-         end
-         #close(csv_file)
-      end
-
-      this.linearize = function()
-         this.sendExpression("setCommandLineOptions(\"+generateSymbolicLinearization\")")
-         overridelist=Any[]
-         for k in keys(this.overridevariables)
-            val=join([k,"=",this.overridevariables[k]])
-            push!(overridelist,val)
-         end
-         overridelinear=Any[]
-         for t in keys(this.linearOptions)
-            val=join([t,"=",this.linearOptions[t]])
-            push!(overridelinear,val)
+            close(file)
          end
 
-         if (this.inputFlag=="true")
-            createcsvdata(this)
-            csvinput=join(["-csvInput=",this.csvfile])
-         else
-            csvinput="";
-         end
-         if (length(overridelist)>0)
-            overridevar=join(["-override=",join(overridelist,",")])
-         else
-            overridevar="";
-         end
-
-         linearexpr=join(["linearize(",this.modelname,",",join(overridelinear,","),",","simflags=","\"",csvinput," ",overridevar,"\"",")"])
-         #println(linearexpr)
-         this.sendExpression(linearexpr)
-         this.resultfile=replace(joinpath(this.tempdir,join([this.modelname,"_res.mat"])),"\\","/")
-         this.linearmodelname=join(["linear_",this.modelname])
-         this.linearfile=joinpath(this.tempdir,join([this.linearmodelname,".mo"]))
-         if(isfile(this.linearfile))
-            loadmsg=this.sendExpression("loadFile(\""*this.linearfile*"\")")
-            if(!parse(loadmsg))
-               return this.sendExpression("getErrorString()")
+         function writecsvdata(value,csv_file)
+            for i in value
+               write(csv_file,i,",")
+               for j in values(this.inputlist)
+                  if(j=="None")
+                     write(csv_file,"0",",")
+                  else
+                     write(csv_file,j,",")
+                  end
+               end
+               write(csv_file,"0","\n")
             end
-            cNames =this.sendExpression("getClassNames()")
-            linearmodelname=parse(cNames)
-            #println(linearmodelname.args[1])
-            buildmodelexpr=join(["buildModel(",linearmodelname.args[1],")"])
-            buildModelmsg=this.sendExpression(buildmodelexpr)
-            parsebuilexp=parse(buildModelmsg)
+            #close(csv_file)
+         end
 
-            if(!isempty(parsebuilexp.args[2]))
-               this.linearFlag="true"
-               this.xmlfile=replace(joinpath(this.tempdir,parsebuilexp.args[2]),"\\","/")
-               xmlparse(this)
-               linearMatrix = getLinearMatrix(this)
-               return linearMatrix
+         this.linearize = function()
+            this.sendExpression("setCommandLineOptions(\"+generateSymbolicLinearization\")")
+            overridelist=Any[]
+            for k in keys(this.overridevariables)
+               val=join([k,"=",this.overridevariables[k]])
+               push!(overridelist,val)
+            end
+            overridelinear=Any[]
+            for t in keys(this.linearOptions)
+               val=join([t,"=",this.linearOptions[t]])
+               push!(overridelinear,val)
+            end
+
+            if (this.inputFlag=="true")
+               createcsvdata(this)
+               csvinput=join(["-csvInput=",this.csvfile])
             else
-               return this.sendExpression("getErrorString()")
+               csvinput="";
             end
-         else
-            errormsg=this.sendExpression("getErrorString()")
-            println(errormsg)
-         end
-      end
-
-      function getLinearMatrix(this)
-         matrix_A=OrderedDict()
-         matrix_B=OrderedDict()
-         matrix_C=OrderedDict()
-         matrix_D=OrderedDict()
-         for i in this.linearquantitylist
-            name=i["name"]
-            value=i["value"]
-            if(i["variability"]=="parameter")
-               if(name[1]=='A')
-                  matrix_A[name]=value
-               end
-               if(name[1]=='B')
-                  matrix_B[name]=value
-               end
-               if(name[1]=='C')
-                  matrix_C[name]=value
-               end
-               if(name[1]=='D')
-                  matrix_D[name]=value
-               end
-            end
-         end
-         FullLinearMatrix=Array{Float64,2}[]
-         tmpMatrix_A=getLinearMatrixValues(matrix_A)
-         tmpMatrix_B=getLinearMatrixValues(matrix_B)
-         tmpMatrix_C=getLinearMatrixValues(matrix_C)
-         tmpMatrix_D=getLinearMatrixValues(matrix_D)
-         push!(FullLinearMatrix,tmpMatrix_A)
-         push!(FullLinearMatrix,tmpMatrix_B)
-         push!(FullLinearMatrix,tmpMatrix_C)
-         push!(FullLinearMatrix,tmpMatrix_D)
-         return FullLinearMatrix
-      end
-
-      function getLinearMatrixValues(matrix_name)
-         v=[i for i in keys(matrix_name)]
-         dim=v[end]
-         tmpMatrix=Matrix(parse(Int,dim[3]),parse(Int,dim[5]))
-         for j in keys(matrix_name)
-            val=j;
-            row=parse(Int,val[3])
-            col=parse(Int,val[5])
-            tmpMatrix[row,col]=parse(Float64,matrix_name[j])
-         end
-         return tmpMatrix
-      end
-
-      this.getLinearizationOptions = function()
-         return this.linearOptions
-      end
-
-      this.getLinearInputs = function()
-         return this.linearinputs
-      end
-
-      this.getLinearOutputs = function()
-         return this.linearoutputs
-      end
-
-      this.getLinearStates = function()
-         return this.linearstates
-      end
-
-      this.setLinearizationOptions = function (name)
-         if(isa(name,String))
-            name=strip_space(name)
-            value=split(name,"=")
-            if(haskey(this.linearOptions,value[1]))
-               this.linearOptions[value[1]]=value[2]
+            if (length(overridelist)>0)
+               overridevar=join(["-override=",join(overridelist,",")])
             else
-               return println(value[1], "  is not a LinearizationOption")
+               overridevar="";
             end
-         elseif(isa(name,Array))
-            name=strip_space(name)
-            for var in name
-               value=split(var,"=")
+
+            linearexpr=join(["linearize(",this.modelname,",",join(overridelinear,","),",","simflags=","\"",csvinput," ",overridevar,"\"",")"])
+            #println(linearexpr)
+            this.sendExpression(linearexpr)
+            this.resultfile=replace(joinpath(this.tempdir,join([this.modelname,"_res.mat"])),"\\","/")
+            this.linearmodelname=join(["linear_",this.modelname])
+            this.linearfile=joinpath(this.tempdir,join([this.linearmodelname,".mo"]))
+            if(isfile(this.linearfile))
+               loadmsg=this.sendExpression("loadFile(\""*this.linearfile*"\")")
+               if(!parse(loadmsg))
+                  return this.sendExpression("getErrorString()")
+               end
+               cNames =this.sendExpression("getClassNames()")
+               linearmodelname=parse(cNames)
+               #println(linearmodelname.args[1])
+               buildmodelexpr=join(["buildModel(",linearmodelname.args[1],")"])
+               buildModelmsg=this.sendExpression(buildmodelexpr)
+               parsebuilexp=parse(buildModelmsg)
+
+               if(!isempty(parsebuilexp.args[2]))
+                  this.linearFlag="true"
+                  this.xmlfile=replace(joinpath(this.tempdir,parsebuilexp.args[2]),"\\","/")
+                  xmlparse(this)
+                  linearMatrix = getLinearMatrix(this)
+                  return linearMatrix
+               else
+                  return this.sendExpression("getErrorString()")
+               end
+            else
+               errormsg=this.sendExpression("getErrorString()")
+               println(errormsg)
+            end
+         end
+
+         function getLinearMatrix(this)
+            matrix_A=OrderedDict()
+            matrix_B=OrderedDict()
+            matrix_C=OrderedDict()
+            matrix_D=OrderedDict()
+            for i in this.linearquantitylist
+               name=i["name"]
+               value=i["value"]
+               if(i["variability"]=="parameter")
+                  if(name[1]=='A')
+                     matrix_A[name]=value
+                  end
+                  if(name[1]=='B')
+                     matrix_B[name]=value
+                  end
+                  if(name[1]=='C')
+                     matrix_C[name]=value
+                  end
+                  if(name[1]=='D')
+                     matrix_D[name]=value
+                  end
+               end
+            end
+            FullLinearMatrix=Array{Float64,2}[]
+            tmpMatrix_A=getLinearMatrixValues(matrix_A)
+            tmpMatrix_B=getLinearMatrixValues(matrix_B)
+            tmpMatrix_C=getLinearMatrixValues(matrix_C)
+            tmpMatrix_D=getLinearMatrixValues(matrix_D)
+            push!(FullLinearMatrix,tmpMatrix_A)
+            push!(FullLinearMatrix,tmpMatrix_B)
+            push!(FullLinearMatrix,tmpMatrix_C)
+            push!(FullLinearMatrix,tmpMatrix_D)
+            return FullLinearMatrix
+         end
+
+         function getLinearMatrixValues(matrix_name)
+            v=[i for i in keys(matrix_name)]
+            dim=v[end]
+            tmpMatrix=Matrix(parse(Int,dim[3]),parse(Int,dim[5]))
+            for j in keys(matrix_name)
+               val=j;
+               row=parse(Int,val[3])
+               col=parse(Int,val[5])
+               tmpMatrix[row,col]=parse(Float64,matrix_name[j])
+            end
+            return tmpMatrix
+         end
+
+         this.getLinearizationOptions = function()
+            return this.linearOptions
+         end
+
+         this.getLinearInputs = function()
+            return this.linearinputs
+         end
+
+         this.getLinearOutputs = function()
+            return this.linearoutputs
+         end
+
+         this.getLinearStates = function()
+            return this.linearstates
+         end
+
+         this.setLinearizationOptions = function (name)
+            if(isa(name,String))
+               name=strip_space(name)
+               value=split(name,"=")
                if(haskey(this.linearOptions,value[1]))
                   this.linearOptions[value[1]]=value[2]
                else
                   return println(value[1], "  is not a LinearizationOption")
                end
+            elseif(isa(name,Array))
+               name=strip_space(name)
+               for var in name
+                  value=split(var,"=")
+                  if(haskey(this.linearOptions,value[1]))
+                     this.linearOptions[value[1]]=value[2]
+                  else
+                     return println(value[1], "  is not a LinearizationOption")
+                  end
+               end
             end
          end
-      end
 
-      function xmlparse(this)
-         if(isfile(this.xmlfile))
-            xdoc = parse_file(this.xmlfile)
-            # get the root element
-            xroot = root(xdoc)  # an instance of XMLElement
-            for c in child_nodes(xroot)  # c is an instance of XMLNode
-               if is_elementnode(c)
-                  e = XMLElement(c)  # this makes an XMLElement instance
-                  if(name(e)=="DefaultExperiment")
-                     this.simulateOptions["startTime"]=attribute(e, "startTime")
-                     this.simulateOptions["stopTime"]=attribute(e, "stopTime")
-                     this.simulateOptions["stepSize"]=attribute(e, "stepSize")
-                     this.simulateOptions["tolerance"]=attribute(e, "tolerance")
-                     this.simulateOptions["solver"]=attribute(e, "solver")
-                  end
-                  if(name(e)=="ModelVariables")
-                     for r in child_elements(e)
-                        scalar = Dict()
-                        scalar["name"] = attribute(r, "name")
-                        scalar["changeable"] = attribute(r,"isValueChangeable")
-                        scalar["description"] = attribute(r,"description")
-                        scalar["variability"] = attribute(r, "variability")
-                        scalar["causality"] = attribute(r,"causality")
-                        scalar["alias"] = attribute(r,"alias")
-                        scalar["aliasvariable"] = attribute(r,"aliasVariable")
-                        subchild=child_elements(r)
-                        for s in subchild
-                           value = attribute(s, "start")
-                           if(value!=nothing)
-                              scalar["value"]=value
+         function xmlparse(this)
+            if(isfile(this.xmlfile))
+               xdoc = parse_file(this.xmlfile)
+               # get the root element
+               xroot = root(xdoc)  # an instance of XMLElement
+               for c in child_nodes(xroot)  # c is an instance of XMLNode
+                  if is_elementnode(c)
+                     e = XMLElement(c)  # this makes an XMLElement instance
+                     if(name(e)=="DefaultExperiment")
+                        this.simulateOptions["startTime"]=attribute(e, "startTime")
+                        this.simulateOptions["stopTime"]=attribute(e, "stopTime")
+                        this.simulateOptions["stepSize"]=attribute(e, "stepSize")
+                        this.simulateOptions["tolerance"]=attribute(e, "tolerance")
+                        this.simulateOptions["solver"]=attribute(e, "solver")
+                     end
+                     if(name(e)=="ModelVariables")
+                        for r in child_elements(e)
+                           scalar = Dict()
+                           scalar["name"] = attribute(r, "name")
+                           scalar["changeable"] = attribute(r,"isValueChangeable")
+                           scalar["description"] = attribute(r,"description")
+                           scalar["variability"] = attribute(r, "variability")
+                           scalar["causality"] = attribute(r,"causality")
+                           scalar["alias"] = attribute(r,"alias")
+                           scalar["aliasvariable"] = attribute(r,"aliasVariable")
+                           subchild=child_elements(r)
+                           for s in subchild
+                              value = attribute(s, "start")
+                              if(value!=nothing)
+                                 scalar["value"]=value
+                              else
+                                 scalar["value"]="None"
+                              end
+                           end
+                           if(scalar["variability"]=="parameter")
+                              this.parameterlist[scalar["name"]]=scalar["value"]
+                           end
+                           if(scalar["variability"]=="continuous")
+                              this.continuouslist[scalar["name"]]=scalar["value"]
+                           end
+                           if(scalar["causality"]=="input")
+                              this.inputlist[scalar["name"]]=scalar["value"]
+                           end
+                           if(scalar["causality"]=="output")
+                              this.outputlist[scalar["name"]]=scalar["value"]
+                           end
+
+                           if(this.linearFlag=="true")
+                              if(scalar["alias"]=="alias")
+                                 name=scalar["name"]
+                                 if (name[2] == 'x')
+                                    #println(name[3:end-1])
+                                    push!(this.linearstates,name[4:end-1])
+                                 end
+                                 if (name[2] == 'u')
+                                    push!(this.linearinputs,name[4:end-1])
+                                 end
+                                 if (name[2] == 'y')
+                                    push!(this.linearoutputs,name[4:end-1])
+                                 end
+                              end
+                           end
+
+                           if(this.linearFlag=="true")
+                              push!(this.linearquantitylist,scalar)
                            else
-                              scalar["value"]="None"
+                              push!(this.quantitieslist,scalar)
                            end
-                        end
-                        if(scalar["variability"]=="parameter")
-                           this.parameterlist[scalar["name"]]=scalar["value"]
-                        end
-                        if(scalar["variability"]=="continuous")
-                           this.continuouslist[scalar["name"]]=scalar["value"]
-                        end
-                        if(scalar["causality"]=="input")
-                           this.inputlist[scalar["name"]]=scalar["value"]
-                        end
-                        if(scalar["causality"]=="output")
-                           this.outputlist[scalar["name"]]=scalar["value"]
-                        end
-
-                        if(this.linearFlag=="true")
-                           if(scalar["alias"]=="alias")
-                              name=scalar["name"]
-                              if (name[2] == 'x')
-                                 #println(name[3:end-1])
-                                 push!(this.linearstates,name[4:end-1])
-                              end
-                              if (name[2] == 'u')
-                                 push!(this.linearinputs,name[4:end-1])
-                              end
-                              if (name[2] == 'y')
-                                 push!(this.linearoutputs,name[4:end-1])
-                              end
-                           end
-                        end
-
-                        if(this.linearFlag=="true")
-                           push!(this.linearquantitylist,scalar)
-                        else
-                           push!(this.quantitieslist,scalar)
                         end
                      end
                   end
                end
+               #return quantities
+            else
+               println("file not generated")
+               return
             end
-            #return quantities
-         else
-            println("file not generated")
-            return
          end
+         return this
       end
-      return this
    end
-end
 end
