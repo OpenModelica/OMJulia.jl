@@ -129,7 +129,7 @@ type OMCSession
          end
          portfile=join(["openmodelica.",ENV["USER"],".port.julia.",args4])
       end
-      sleep(1)
+      sleep(5)
       fullpath=joinpath(tempdir(),portfile)
       this.context=ZMQ.Context()
       this.socket =ZMQ.Socket(this.context, REQ)
