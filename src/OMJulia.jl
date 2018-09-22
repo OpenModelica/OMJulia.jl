@@ -141,7 +141,7 @@ type OMCSession
          return (unsafe_string(message))
       end
 
-      this.ModelicaSystem = function (filename, modelname)
+      this.ModelicaSystem = function (filename, modelname, library=nothing)
          this.filepath=filename
          this.modelname=modelname
          filepath=replace(abspath(filename),"\\","/")
@@ -161,6 +161,9 @@ type OMCSession
             return println(this.tempdir, " cannot be created")
          end
          this.sendExpression("cd(\""*this.tempdir*"\")")
+         if(library!=nothing)
+            this.sendExpression("loadModel(Modelica)")
+         end
          buildmodelexpr=join(["buildModel(",modelname,")"])
          buildModelmsg=this.sendExpression(buildmodelexpr)
          parsebuilexp=parse(buildModelmsg)
