@@ -162,7 +162,15 @@ type OMCSession
          end
          this.sendExpression("cd(\""*this.tempdir*"\")")
          if(library!=nothing)
-            this.sendExpression("loadModel(Modelica)")
+            if(isa(library,String))
+               libname=join(["loadModel(",library,")"])
+               this.sendExpression(libname)
+            elseif (isa(library,Array))
+               for i in library
+                  libname=join(["loadModel(",i,")"])
+                  this.sendExpression(libname)
+               end
+            end
          end
          buildmodelexpr=join(["buildModel(",modelname,")"])
          buildModelmsg=this.sendExpression(buildmodelexpr)
@@ -769,12 +777,14 @@ type OMCSession
 
          function getLinearMatrixValues(matrix_name)
             v=[i for i in keys(matrix_name)]
-            dim=v[end]
-            tmpMatrix=Matrix(parse(Int,dim[3]),parse(Int,dim[5]))
+            dim=parse(v[end])
+            rowcount=dim.args[2]
+            colcount=dim.args[3]
+            tmpMatrix=Matrix(rowcount,colcount)
             for j in keys(matrix_name)
-               val=j;
-               row=parse(Int,val[3])
-               col=parse(Int,val[5])
+               val=parse(j);
+               row=val.args[2];
+               col=val.args[3];
                tmpMatrix[row,col]=parse(Float64,matrix_name[j])
             end
             return tmpMatrix
