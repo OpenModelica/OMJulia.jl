@@ -129,11 +129,19 @@ type OMCSession
          end
          portfile=join(["openmodelica.",ENV["USER"],".port.julia.",args4])
       end
-      sleep(5)
+      #sleep(5)
       fullpath=joinpath(tempdir(),portfile)
+      ## Try to find better approach if possible, as sleep does not work properly across different platform
+      filedata=""
+      while true
+         if(isfile(fullpath))
+            filedata=readstring(fullpath)
+            break
+         end
+      end
       this.context=ZMQ.Context()
       this.socket =ZMQ.Socket(this.context, REQ)
-      ZMQ.connect(this.socket, readstring(fullpath))
+      ZMQ.connect(this.socket, filedata)
 
       this.sendExpression = function (expr)
          ZMQ.send(this.socket,expr)
