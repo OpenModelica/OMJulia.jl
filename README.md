@@ -7,6 +7,12 @@ Julia scripting OpenModelica interface
 [JuliaZMQ](https://github.com/JuliaInterop/ZMQ.jl)<br>
 
 # Installation 
+
+Set OpenModelica to "Path" environment variable for windows, for example 
+```
+"C:/OpenModelica1.13.0-dev-64bit/bin"
+```
+
 Clone the repository 
 ```
 julia> Pkg.clone("https://github.com/OpenModelica/OMJulia.jl")
