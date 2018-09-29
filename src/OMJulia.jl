@@ -103,10 +103,10 @@ type OMCSession
       this.linearfile=""
       this.linearFlag="false"
       this.linearmodelname=""
-      this.linearquantitylist=Any[]
-      this.linearinputs=Any[]
-      this.linearoutputs=Any[]
-      this.linearstates=Any[]
+      #this.linearquantitylist=Any[]
+      #this.linearinputs=Any[]
+      #this.linearoutputs=Any[]
+      #this.linearstates=Any[]
       this.linearOptions=Dict("startTime"=>"0.0", "stopTime"=>"1.0", "numberOfIntervals"=>"500", "stepSize"=>"0.002", "tolerance"=> "1e-6")
       args2="--interactive=zmq"
       args3="+z=julia."
@@ -736,6 +736,10 @@ type OMCSession
                if(!isempty(parsebuilexp.args[2]))
                   this.linearFlag="true"
                   this.xmlfile=replace(joinpath(this.tempdir,parsebuilexp.args[2]),"\\","/")
+                  this.linearquantitylist=Any[]
+                  this.linearinputs=Any[]
+                  this.linearoutputs=Any[]
+                  this.linearstates=Any[]
                   xmlparse(this)
                   linearMatrix = getLinearMatrix(this)
                   return linearMatrix
