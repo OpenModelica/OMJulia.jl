@@ -33,7 +33,7 @@ using DataStructures
 using LightXML
 using DataFrames
 
-type OMCSession
+mutable struct OMCSession
    sendExpression::Function
    ModelicaSystem::Function
    xmlparse::Function
