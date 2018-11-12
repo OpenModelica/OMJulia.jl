@@ -4,7 +4,13 @@ Julia scripting OpenModelica interface
 # Requirement:
 [Openmodelica](https://www.openmodelica.org/)<br>
 [Julia](https://julialang.org/)<br>
-[JuliaZMQ](https://github.com/JuliaInterop/ZMQ.jl)<br>
+
+# julia Dependencies:
+> Pkg.add("ZMQ") <br>
+> Pkg.add("Compat") <br>
+> Pkg.add("DataStructures") <br>
+> Pkg.add("LightXML") <br>
+> Pkg.add("Random")<br>
 
 # Installation 
 
