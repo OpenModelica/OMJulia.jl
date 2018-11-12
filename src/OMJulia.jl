@@ -32,6 +32,7 @@ using Compat
 using DataStructures
 using LightXML
 using DataFrames
+using Random
 
 mutable struct OMCSession
    sendExpression::Function
@@ -106,22 +107,22 @@ mutable struct OMCSession
       this.linearOptions=Dict("startTime"=>"0.0", "stopTime"=>"1.0", "numberOfIntervals"=>"500", "stepSize"=>"0.002", "tolerance"=> "1e-6")
       args2="--interactive=zmq"
       args3="+z=julia."
-      args4=randstring(10)
+      args4=Random.randstring(10)
       if (Compat.Sys.iswindows())
          omhome=ENV["OPENMODELICAHOME"]
-         #ompath=replace(joinpath(omhome,"bin","omc.exe"),"\\","/")
+         #ompath=replace(joinpath(omhome,"bin","omc.exe"),r"[/\\]+" => "/")
          ompath=joinpath(omhome,"bin")
          #add omc to path if not exist
          ENV["PATH"]=ENV["PATH"]*ompath
-         spawn(pipeline(`omc $args2 $args3$args4`))
+         open(pipeline(`omc $args2 $args3$args4`))
          portfile=join(["openmodelica.port.julia.",args4])
       else
          if (Compat.Sys.isapple())
             #add omc to path if not exist
             ENV["PATH"]=ENV["PATH"]*"/opt/openmodelica/bin"
-            spawn(pipeline(`omc $args2 $args3$args4`))
+            open(pipeline(`omc $args2 $args3$args4`))
          else
-            spawn(pipeline(`omc $args2 $args3$args4`))
+            open(pipeline(`omc $args2 $args3$args4`))
          end
          portfile=join(["openmodelica.",ENV["USER"],".port.julia.",args4])
       end
@@ -131,7 +132,7 @@ mutable struct OMCSession
       filedata=""
       while true
          if(isfile(fullpath))
-            filedata=readstring(fullpath)
+            filedata=read(fullpath,String)
             break
          end
       end
@@ -148,19 +149,18 @@ mutable struct OMCSession
       this.ModelicaSystem = function (filename, modelname, library=nothing)
          this.filepath=filename
          this.modelname=modelname
-         filepath=replace(abspath(filename),"\\","/")
-         #println(filepath)
+         filepath=replace(abspath(filename),r"[/\\]+" => "/")
          if(isfile(filepath))
             loadmsg=this.sendExpression("loadFile(\""*filepath*"\")")
-            if(!parse(loadmsg))
+            if(!Base.Meta.parse(loadmsg))
                return this.sendExpression("getErrorString()")
             end
          else
             return println(filename, "! NotFound")
          end
-         #this.tempdir=replace(joinpath(pwd(),join(["zz_",randstring(5),".tmp"])),"\\","/")
+         #this.tempdir=replace(joinpath(pwd(),join(["zz_",Random.randstring(5),".tmp"])),r"[/\\]+" => "/")
          #mkdir(this.tempdir)
-         this.tempdir=replace(mktempdir(),"\\","/")
+         this.tempdir=replace(mktempdir(),r"[/\\]+" => "/")
          if(!isdir(this.tempdir))
             return println(this.tempdir, " cannot be created")
          end
@@ -178,10 +178,10 @@ mutable struct OMCSession
          end
          buildmodelexpr=join(["buildModel(",modelname,")"])
          buildModelmsg=this.sendExpression(buildmodelexpr)
-         parsebuilexp=parse(buildModelmsg)
+         parsebuilexp=Base.Meta.parse(buildModelmsg)
 
          if(!isempty(parsebuilexp.args[2]))
-            this.xmlfile=replace(joinpath(this.tempdir,parsebuilexp.args[2]),"\\","/")
+            this.xmlfile=replace(joinpath(this.tempdir,parsebuilexp.args[2]),r"[/\\]+" => "/")
             xmlparse(this)
          else
             return this.sendExpression("getErrorString()")
@@ -226,7 +226,7 @@ mutable struct OMCSession
       this.showQuantities = function(name=nothing)
          q = this.getQuantities(name);
          # assuming that the keys of the first dictionary is representative for them all
-         sym = map(Symbol,keys(q[1]))
+         sym = map(Symbol,collect(keys(q[1])))
          arr = []
          for d in q
             push!(arr,Dict(zip(sym,values(d))))
@@ -363,9 +363,9 @@ mutable struct OMCSession
          #println(this.xmlfile)
          if(isfile(this.xmlfile))
             if (Compat.Sys.iswindows())
-               getexefile=replace(joinpath(this.tempdir,join([this.modelname,".exe"])),"\\","/")
+               getexefile=replace(joinpath(this.tempdir,join([this.modelname,".exe"])),r"[/\\]+" => "/")
             else
-               getexefile=replace(joinpath(this.tempdir,this.modelname),"\\","/")
+               getexefile=replace(joinpath(this.tempdir,this.modelname),r"[/\\]+" => "/")
             end
             if(isfile(getexefile))
                ## change to tempdir
@@ -393,7 +393,7 @@ mutable struct OMCSession
                      run(pipeline(`$getexefile`,stdout="log.txt",stderr="error.txt"))
                   end
                end
-               this.resultfile=replace(joinpath(this.tempdir,join([this.modelname,"_res.mat"])),"\\","/")
+               this.resultfile=replace(joinpath(this.tempdir,join([this.modelname,"_res.mat"])),r"[/\\]+" => "/")
                this.simulationFlag="True"
             else
                return println("! Simulation Failed")
@@ -432,7 +432,7 @@ mutable struct OMCSession
                Ve = Ve[1:nVp] # truncates Ve to same length as Vp
             end
             # Nominal parameters p0
-            par0 = [parse(Float64,pp) for pp in this.getParameters(Vp)]
+            par0 = [Base.parse(Float64,pp) for pp in this.getParameters(Vp)]
             # eXcitation parameters parX
             parX = [par0[i]*(1+Ve[i]) for i in 1:nVp]
             # Combine parameter names and parameter values into vector of strings
@@ -475,19 +475,19 @@ mutable struct OMCSession
             if(!isempty(this.resultfile))
                if(name==nothing)
                   simresultvars=this.sendExpression("readSimulationResultVars(\"" * this.resultfile * "\")")
-                  parsesimresultvars=parse(simresultvars)
+                  parsesimresultvars=Base.Meta.parse(simresultvars)
                   return parsesimresultvars.args
                elseif(isa(name,String))
                   resultvar=join(["{",name,"}"])
                   simres=this.sendExpression("readSimulationResult(\""* this.resultfile * "\","* resultvar *")")
-                  data=parse(simres)
+                  data=Base.Meta.parse(simres)
                   this.sendExpression("closeSimulationResultFile()")
                   return [convert(Array{Float64,1},plotdata.args) for plotdata in data.args]
                elseif(isa(name,Array))
                   resultvar=join(["{",join(name,","),"}"])
                   #println(resultvar)
                   simres=this.sendExpression("readSimulationResult(\""* this.resultfile * "\","* resultvar *")")
-                  data=parse(simres)
+                  data=Base.Meta.parse(simres)
                   plotdata=Array{Float64,1}[]
                   for item in data.args
                      push!(plotdata,convert(Array{Float64,1},item.args))
@@ -556,7 +556,7 @@ mutable struct OMCSession
                name=strip_space(name)
                value=split(name,"=")
                if(haskey(this.inputlist,value[1]))
-                  newval=parse(value[2])
+                  newval=Base.Meta.parse(value[2])
                   if(isa(newval, Expr))
                      this.inputlist[value[1]]=[v.args for v in newval.args]
                   else
@@ -571,7 +571,7 @@ mutable struct OMCSession
                for var in name
                   value=split(var,"=")
                   if(haskey(this.inputlist,value[1]))
-                     newval=parse(value[2])
+                     newval=Base.Meta.parse(value[2])
                      if(isa(newval, Expr))
                         this.inputlist[value[1]]=[v.args for v in newval.args]
                      else
@@ -714,24 +714,24 @@ mutable struct OMCSession
             linearexpr=join(["linearize(",this.modelname,",",join(overridelinear,","),",","simflags=","\"",csvinput," ",overridevar,"\"",")"])
             #println(linearexpr)
             this.sendExpression(linearexpr)
-            this.resultfile=replace(joinpath(this.tempdir,join([this.modelname,"_res.mat"])),"\\","/")
+            this.resultfile=replace(joinpath(this.tempdir,join([this.modelname,"_res.mat"])),r"[/\\]+" => "/")
             this.linearmodelname=join(["linear_",this.modelname])
             this.linearfile=joinpath(this.tempdir,join([this.linearmodelname,".mo"]))
             if(isfile(this.linearfile))
                loadmsg=this.sendExpression("loadFile(\""*this.linearfile*"\")")
-               if(!parse(loadmsg))
+               if(!Base.Meta.parse(loadmsg))
                   return this.sendExpression("getErrorString()")
                end
                cNames =this.sendExpression("getClassNames()")
-               linearmodelname=parse(cNames)
+               linearmodelname=Base.Meta.parse(cNames)
                #println(linearmodelname.args[1])
                buildmodelexpr=join(["buildModel(",linearmodelname.args[1],")"])
                buildModelmsg=this.sendExpression(buildmodelexpr)
-               parsebuilexp=parse(buildModelmsg)
+               parsebuilexp=Base.Meta.parse(buildModelmsg)
 
                if(!isempty(parsebuilexp.args[2]))
                   this.linearFlag="true"
-                  this.xmlfile=replace(joinpath(this.tempdir,parsebuilexp.args[2]),"\\","/")
+                  this.xmlfile=replace(joinpath(this.tempdir,parsebuilexp.args[2]),r"[/\\]+" => "/")
                   this.linearquantitylist=Any[]
                   this.linearinputs=Any[]
                   this.linearoutputs=Any[]
@@ -785,15 +785,15 @@ mutable struct OMCSession
 
          function getLinearMatrixValues(matrix_name)
             v=[i for i in keys(matrix_name)]
-            dim=parse(v[end])
+            dim=Base.Meta.parse(v[end])
             rowcount=dim.args[2]
             colcount=dim.args[3]
-            tmpMatrix=Matrix(rowcount,colcount)
+            tmpMatrix=Matrix(undef,rowcount,colcount)
             for j in keys(matrix_name)
-               val=parse(j);
+               val=Base.Meta.parse(j);
                row=val.args[2];
                col=val.args[3];
-               tmpMatrix[row,col]=parse(Float64,matrix_name[j])
+               tmpMatrix[row,col]=Base.parse(Float64,matrix_name[j])
             end
             return tmpMatrix
          end
@@ -803,15 +803,27 @@ mutable struct OMCSession
          end
 
          this.getLinearInputs = function()
-            return this.linearinputs
+            if(this.linearFlag=="true")
+               return this.linearinputs
+            else
+               println("Model is not Linearized")
+            end
          end
 
          this.getLinearOutputs = function()
-            return this.linearoutputs
+            if(this.linearFlag=="true")
+               return this.linearoutputs
+            else
+               println("Model is not Linearized")
+            end
          end
 
          this.getLinearStates = function()
-            return this.linearstates
+            if(this.linearFlag=="true")
+               return this.linearstates
+            else
+               println("Model is not Linearized")
+            end
          end
 
          this.setLinearizationOptions = function (name)
