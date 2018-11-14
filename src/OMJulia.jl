@@ -32,7 +32,9 @@ using Compat
 using DataStructures
 using LightXML
 using DataFrames
-using Random
+if(VERSION >=v"1.0")
+   using Random
+end
 
 mutable struct OMCSession
    sendExpression::Function
@@ -58,6 +60,8 @@ mutable struct OMCSession
    getLinearOutputs::Function
    getLinearStates::Function
    sensitivity::Function
+   convertMo2FMU::Function
+   convertFmu2Mo::Function
    simulationFlag
    inputFlag
    simulateOptions
@@ -107,7 +111,11 @@ mutable struct OMCSession
       this.linearOptions=Dict("startTime"=>"0.0", "stopTime"=>"1.0", "numberOfIntervals"=>"500", "stepSize"=>"0.002", "tolerance"=> "1e-6")
       args2="--interactive=zmq"
       args3="+z=julia."
-      args4=Random.randstring(10)
+      if(VERSION >= v"1.0")
+         args4=Random.randstring(10)
+      else
+         args4=randstring(10)
+      end
       if (Compat.Sys.iswindows())
          omhome=ENV["OPENMODELICAHOME"]
          #ompath=replace(joinpath(omhome,"bin","omc.exe"),r"[/\\]+" => "/")
@@ -403,6 +411,14 @@ mutable struct OMCSession
          end
       end
 
+      this.convertMo2FMU=function()
+         if(!isempty(this.modelname))
+            fmuexpression=join(["translateModelFMU(",this.modelname,")"])
+            this.sendExpression(fmuexpression)
+         else
+            println(this.sendExpression("getErrorString()"))
+         end
+      end
 
       this.sensitivity=function(Vp,Vv,Ve=[1e-2])
          """
