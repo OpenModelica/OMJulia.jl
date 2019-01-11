@@ -414,9 +414,19 @@ mutable struct OMCSession
       this.convertMo2FMU=function()
          if(!isempty(this.modelname))
             fmuexpression=join(["translateModelFMU(",this.modelname,")"])
-            this.sendExpression(fmuexpression)
+            Base.Meta.parse(this.sendExpression(fmuexpression))
          else
             println(this.sendExpression("getErrorString()"))
+         end
+      end
+
+      this.convertFmu2Mo=function(fmupath)
+         fmupath=replace(abspath(fmupath),r"[/\\]+" => "/")
+         if(isfile(fmupath))
+            result=this.sendExpression("importFMU(\"" *fmupath* "\")")
+            return joinpath(this.tempdir,Base.Meta.parse(result))
+         else
+            println(fmupath, " ! Fmu not Found")
          end
       end
 
