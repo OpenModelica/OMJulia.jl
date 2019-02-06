@@ -118,11 +118,11 @@ mutable struct OMCSession
       end
       if (Compat.Sys.iswindows())
          omhome=ENV["OPENMODELICAHOME"]
-         #ompath=replace(joinpath(omhome,"bin","omc.exe"),r"[/\\]+" => "/")
-         ompath=joinpath(omhome,"bin")
+         ompath=replace(joinpath(omhome,"bin","omc.exe"),r"[/\\]+" => "/")
+         #ompath=joinpath(omhome,"bin")
          #add omc to path if not exist
          ENV["PATH"]=ENV["PATH"]*ompath
-         open(pipeline(`omc $args2 $args3$args4`))
+         open(pipeline(`$ompath $args2 $args3$args4`))
          portfile=join(["openmodelica.port.julia.",args4])
       else
          if (Compat.Sys.isapple())
@@ -175,12 +175,28 @@ mutable struct OMCSession
          this.sendExpression("cd(\""*this.tempdir*"\")")
          if(library!=nothing)
             if(isa(library,String))
-               libname=join(["loadModel(",library,")"])
-               this.sendExpression(libname)
+               if(isfile(library))
+                  libfile=replace(abspath(library),r"[/\\]+" => "/")
+                  libfilemsg=this.sendExpression("loadFile(\""*libfile*"\")")
+                  if(!Base.Meta.parse(libfilemsg))
+                     return this.sendExpression("getErrorString()")
+                  end
+               else
+                  libname=join(["loadModel(",library,")"])
+                  this.sendExpression(libname)
+               end
             elseif (isa(library,Array))
                for i in library
-                  libname=join(["loadModel(",i,")"])
-                  this.sendExpression(libname)
+                  if(isfile(i))
+                     libfile=replace(abspath(i),r"[/\\]+" => "/")
+                     libfilemsg=this.sendExpression("loadFile(\""*libfile*"\")")
+                     if(!Base.Meta.parse(libfilemsg))
+                        return this.sendExpression("getErrorString()")
+                     end
+                  else
+                     libname=join(["loadModel(",i,")"])
+                     this.sendExpression(libname)
+                  end
                end
             end
          end
