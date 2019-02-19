@@ -36,6 +36,10 @@ if(VERSION >=v"1.0")
    using Random
 end
 
+export SendExpression
+
+include("parser.jl")
+
 mutable struct OMCSession
    sendExpression::Function
    ModelicaSystem::Function
@@ -971,4 +975,11 @@ mutable struct OMCSession
          return this
       end
    end
+
+function sendExpression(omc, expr)
+   ZMQ.send(omc.socket, expr)
+   message=ZMQ.recv(omc.socket)
+   return Parser.parse_whole(Parser.exp, unsafe_string(message))
+end
+
 end
