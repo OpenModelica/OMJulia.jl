@@ -143,6 +143,7 @@ mutable struct OMCSession
       ## Try to find better approach if possible, as sleep does not work properly across different platform
       filedata=""
       while true
+         sleep(0.01) # Necessary or Julia might optimize away checking isfile every iteration
          if(isfile(fullpath))
             filedata=read(fullpath,String)
             break

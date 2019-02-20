@@ -1,0 +1,32 @@
+pipeline {
+  agent {
+    docker {
+      // Large image with full OpenModelica build dependencies; lacks omc and OMPython
+      label 'linux'
+      image 'docker.openmodelica.org/omjulia-build-deps:v0.1.0'
+      alwaysPull  true
+      args '--privileged'
+    }
+  }
+  options {
+    skipDefaultCheckout true
+  }
+  stages {
+    stage('build') {
+      environment {
+        HOME = '/home/julia'
+        USER = 'jenkins'
+      }
+      steps {
+        dir("OMJulia.jl") {
+          checkout scm
+          sh 'hostname'
+          sh '(cd /home/julia && tar xf /home/julia.tar)'
+          sh 'test -d $HOME/.julia/compiled/v1.0/PEG/'
+          sh 'julia -e "using Pkg; Pkg.REPLMode.pkgstr(\\"add $PWD\\");"'
+          sh 'julia -e "using Pkg; Pkg.test(\\"OMJulia\\", coverage=true)"'
+        }
+      }
+    }
+  }
+}
