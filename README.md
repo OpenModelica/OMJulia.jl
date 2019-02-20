@@ -10,6 +10,7 @@ Julia scripting OpenModelica interface
 > Pkg.add("Compat") <br>
 > Pkg.add("DataStructures") <br>
 > Pkg.add("LightXML") <br>
+> Pkg.add("DataFrames") <br>
 > Pkg.add("Random")<br>
 
 # Installation 
