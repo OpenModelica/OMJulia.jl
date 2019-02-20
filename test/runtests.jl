@@ -31,14 +31,14 @@ end
 
 end
 
-end
-
 @testset "OpenModelica" begin
 
 omc = OMJulia.OMCSession()
 
 @test "3\n"==omc.sendExpression("1+2")
 @test 3==OMJulia.sendExpression(omc, "1+2")
+
+end
 
 end
 
