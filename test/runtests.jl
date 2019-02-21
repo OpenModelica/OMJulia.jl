@@ -21,6 +21,8 @@ end
 @test check("tRuE", true, Bool)
 @test check("false", false, Bool)
 @test check("\"ab\\nc\"", "ab\nc", String)
+@test check("{\"abc\"}", ["abc"], Array{String,1})
+@test check("{1}", [1], Array{Int,1})
 @test check("{1,2,3}", [1,2,3], Array{Int,1})
 @test check("(1,2,3)", (1,2,3), Tuple{Int,Int,Int})
 @test check("NONE()", nothing, Nothing)
