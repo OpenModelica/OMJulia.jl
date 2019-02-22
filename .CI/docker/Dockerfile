@@ -25,7 +25,6 @@ RUN export HOME=/home/julia && \
     julia -O3 -e 'using Pkg;Pkg.REPLMode.pkgstr("add DataFrames;precompile");using DataFrames' && \
     julia -O3 -e 'using Pkg;Pkg.REPLMode.pkgstr("add DataStructures  ;precompile");using DataStructures' && \
     julia -O3 -e 'using Pkg;Pkg.REPLMode.pkgstr("add LightXML  ;precompile");using LightXML' && \
-    julia -O3 -e 'using Pkg;Pkg.REPLMode.pkgstr("add PEG  ;precompile");using PEG' && \
     julia -O3 -e 'using Pkg;Pkg.REPLMode.pkgstr("add Random  ;precompile");using Random' && \
     julia -O3 -e 'using Pkg;Pkg.REPLMode.pkgstr("add Test  ;precompile");using Test' && \
     (cd /home/julia && tar cf /home/julia.tar .julia) && rm -rf /home/julia/.julia && chmod ugo+rwx /home/julia

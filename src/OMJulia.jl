@@ -980,7 +980,7 @@ mutable struct OMCSession
 function sendExpression(omc, expr)
    ZMQ.send(omc.socket, expr)
    message=ZMQ.recv(omc.socket)
-   return Parser.parse_whole(Parser.exp, unsafe_string(message))
+   return Parser.parseOM(unsafe_string(message))
 end
 
 end
