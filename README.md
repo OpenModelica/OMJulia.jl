@@ -1,24 +1,19 @@
 # OMJulia
-Julia scripting OpenModelica interface 
+Julia scripting OpenModelica interface
 
 # Requirement:
 [Openmodelica](https://www.openmodelica.org/)<br>
 [Julia](https://julialang.org/)<br>
 
-# julia Dependencies:
-> Pkg.add("ZMQ") <br>
-> Pkg.add("Compat") <br>
-> Pkg.add("DataStructures") <br>
-> Pkg.add("LightXML") <br>
-> Pkg.add("Random")<br>
+[Dependencies](Project.toml)
 
-# Installation 
+# Installation
 
-Set OpenModelica to "Path" environment variable for windows, for example 
+Set OpenModelica to "Path" environment variable for windows, for example
 ```
 "C:/OpenModelica1.13.0-dev-64bit/bin"
 ```
-Clone the repository 
+Clone the repository
 ```
 julia> Pkg.clone("https://github.com/OpenModelica/OMJulia.jl")
 ```
@@ -30,14 +25,16 @@ To see the list advanced API, the informations are provided in the UserGuide see
 
 # Usage
 ```
-julia> using OMJulia
+julia> using OMJulia: sendExpression
 julia> omc=OMJulia.OMCSession()
-julia> omc.sendExpression("getVersion()")
-"\"v1.13.0-dev-531-gde26b558a (64-bit)\"\n"
-julia> omc.sendExpression("model a end a;")
-"{a}\n"
-julia> omc.sendExpression("getClassNames()")
-"{a}\n"
+julia> sendExpression(omc, "getVersion()")
+"OMCompiler v1.14.0-dev.117+gddcc28391"
+julia> sendExpression(omc, "model a end a;")
+1-element Array{Symbol,1}:
+ :a
+julia> sendExpression(omc, "getClassNames()")
+1-element Array{Symbol,1}:
+ :a
 ```
 
 To see the list of available OpenModelicaScripting API see    (https://www.openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html
