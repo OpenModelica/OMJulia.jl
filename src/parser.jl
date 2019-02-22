@@ -1,21 +1,125 @@
 module Parser
 
-using PEG
+struct Identifier
+  id::String
+end
 
-@rule exp = bool, float , integer, string, array, tuple, none, some, record, ident
-@rule bool = r"true"ip |> x -> true, r"false"ip |> x -> false
-@rule string = r"\"([^\"\\]|\\.)*\""p |> x -> unescape_string(x[2:end-1])
-@rule number = r"\d+"w , "123."
-@rule integer = r"\d+"w |> x -> parse(Int64, x)
-@rule float = r"(\d+[.]\d*|\d*[.]\d+)([eE][+-]?\d+)?|\d+([eE][+-]?\d+)" |> x -> parse(Float64, x)
-@rule array = r"{"p & sequence & r"}"p > (x,y,z) -> collect(Base.tuple(y...)) # Fixed the type of the array
-@rule tuple = "(" & sequence & ")" > (x,y,z) -> Base.tuple(y...)
-@rule sequence = (exp & ( "," & exp > (x,y) -> y )[:*] > (x,y) -> vcat([x],y)) , "" |> x -> []
-@rule none = r"NONE"p & r"\("p & r"\)"p |> x -> nothing
-@rule some = r"SOME"p & r"\("p & exp & r"\)"p > (x,y,exp,z) -> exp
-@rule ident = r"[[:alnum:]_][[:alnum:]_0-9]*"p |> x -> convert(String, x) , r"'([^']|\\.)*'"p |> x -> convert(String, x)
-@rule member = ident & r"\s*=\s*" & exp > (x,y,z) -> (x,z)
-@rule members = member & (r"\s*,\s*" & member > (x,y) -> y)[:*] > (x,y) -> begin res = Dict(y) ; res[x[1]] = x[2] ; res end, ("" |> x -> Dict{String,Any}())
-@rule record = r"record"w & ident & members & r"end"w & ident & ";" > (x,i1,members,e,i2,sc) -> Dict(members)
+struct Record
+end
+
+struct ParseError <: Exception
+  errmsg::AbstractString
+end
+
+struct LexerError <: Exception
+  errmsg::AbstractString
+end
+
+include("memory.jl")
+include("lexer.jl")
+
+show(io::IO, exc::ParseError) = print(io, string("Parse error: ",exc.errmsg))
+
+function parseOM(t::Union{Int,Float64,String,Bool}, tokens)
+  return t
+end
+
+function checkToken(sym::Symbol, tok)
+  if tok != sym
+    throw(ParseError("Expected token of type $sym, got $(tok)"))
+  end
+  tok
+end
+
+function checkToken(t, tok)
+  if typeof(tok) != t
+    throw(ParseError("Expected token of type $t, got $(typeof(tok))"))
+  end
+  tok
+end
+
+function parseSequence(tokens, last)
+  res = []
+  tok = popfirst!(tokens)
+  if (tok == last)
+    return res
+  end
+  push!(res, parseOM(tok, tokens))
+  tok = popfirst!(tokens)
+  while tok == Symbol(",")
+    push!(res, parseOM(popfirst!(tokens), tokens))
+    tok = popfirst!(tokens)
+  end
+  checkToken(last, tok)
+  return collect(tuple(res...))
+end
+
+function parseOM(t::Symbol, tokens)
+  if t == Symbol("(")
+    res = tuple(parseSequence(tokens, Symbol(")"))...)
+  elseif t == Symbol("{")
+    res = parseSequence(tokens, Symbol("}"))
+  end
+end
+
+function parseOM(t::Identifier, tokens)
+  if t.id == "NONE"
+    checkToken(Symbol("("), popfirst!(tokens))
+    checkToken(Symbol(")"), popfirst!(tokens))
+    return nothing
+  elseif t.id == "SOME"
+    checkToken(Symbol("("), popfirst!(tokens))
+    res = parseOM(popfirst!(tokens), tokens)
+    checkToken(Symbol(")"), popfirst!(tokens))
+    return res
+  else
+    return Symbol(t.id)
+  end
+end
+
+function parseOM(t::Record, tokens)
+  res = Tuple{String,Any}[]
+
+  checkToken(Identifier, popfirst!(tokens))
+  tok = popfirst!(tokens)
+  if tok != :end
+    id = checkToken(Identifier, tok)
+    checkToken(Symbol("="), popfirst!(tokens))
+    val = parseOM(popfirst!(tokens), tokens)
+    push!(res, (id.id, val))
+    tok = popfirst!(tokens)
+    while tok == Symbol(",")
+      id = checkToken(Identifier, popfirst!(tokens))
+      checkToken(Symbol("="), popfirst!(tokens))
+      val = parseOM(popfirst!(tokens), tokens)
+      push!(res, (id.id, val))
+      tok = popfirst!(tokens)
+    end
+  end
+  checkToken(:end, tok)
+  checkToken(Identifier, popfirst!(tokens))
+  checkToken(Symbol(";"), popfirst!(tokens))
+  # Fixes the type of the dictionary
+  if isempty(res)
+    return Dict(res)
+  end
+  return Dict(collect(Base.tuple(res...)))
+end
+
+function parseOM(tokens::AbstractArray{Any,1})
+  if (length(tokens)==0)
+    return nothing
+  end
+  t = popfirst!(tokens)
+  res = parseOM(t, tokens)
+  if !isempty(tokens)
+    throw(ParseError("Expected EOF, got output $tokens"))
+  end
+  res
+end
+
+function parseOM(str::String)
+  parseOM(tokenize(str))
+end
 
 end

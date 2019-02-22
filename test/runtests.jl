@@ -8,7 +8,7 @@ using Test
 @testset "Parser" begin
 
 function check(string, expected_value, expected_type)
-  value = OMJulia.Parser.parse_whole(OMJulia.Parser.exp, string)
+  value = OMJulia.Parser.parseOM(string)
   expected_value == value && expected_type == typeof(value)
 end
 
@@ -27,9 +27,10 @@ end
 @test check("(1,2,3)", (1,2,3), Tuple{Int,Int,Int})
 @test check("NONE()", nothing, Nothing)
 @test check("SOME(1)", 1, Int)
-@test check("abc_2", "abc_2", String)
+@test check("abc_2", :abc_2, Symbol)
 @test check("record ABC end ABC;", Dict(), Dict{String,Any})
 @test check("record ABC a = 1, 'b' = 2,\n  c = 3\nend ABC;", Dict("a" => 1, "'b'" => 2, "c" => 3), Dict{String,Int})
+@test check("", nothing, Nothing)
 
 end
 
