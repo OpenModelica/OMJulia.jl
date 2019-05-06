@@ -831,18 +831,22 @@ mutable struct OMCSession
          end
 
          function getLinearMatrixValues(matrix_name)
-            v=[i for i in keys(matrix_name)]
-            dim=Base.Meta.parse(v[end])
-            rowcount=dim.args[2]
-            colcount=dim.args[3]
-            tmpMatrix=Matrix(undef,rowcount,colcount)
-            for j in keys(matrix_name)
-               val=Base.Meta.parse(j);
-               row=val.args[2];
-               col=val.args[3];
-               tmpMatrix[row,col]=Base.parse(Float64,matrix_name[j])
+            if (!isempty(matrix_name))
+               v=[i for i in keys(matrix_name)]
+               dim=Base.Meta.parse(v[end])
+               rowcount=dim.args[2]
+               colcount=dim.args[3]
+               tmpMatrix=Matrix(undef,rowcount,colcount)
+               for j in keys(matrix_name)
+                  val=Base.Meta.parse(j);
+                  row=val.args[2];
+                  col=val.args[3];
+                  tmpMatrix[row,col]=Base.parse(Float64,matrix_name[j])
+               end
+               return tmpMatrix
+            else
+               return Matrix(undef,0,0)
             end
-            return tmpMatrix
          end
 
          this.getLinearizationOptions = function()
