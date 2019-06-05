@@ -1,19 +1,22 @@
 # OMJulia
 Julia scripting OpenModelica interface
 
-# Requirement:
+# Requirements:
 [Openmodelica](https://www.openmodelica.org/)<br>
 [Julia](https://julialang.org/)<br>
-
 [Dependencies](Project.toml)
 
 # Installation
-
-Set OpenModelica to "Path" environment variable for windows, for example
+## For Windows
+Set the OpenModelica to "Path" environment variable for windows:
 ```
 "C:/OpenModelica1.13.0-dev-64bit/bin"
 ```
-Clone the repository
+## For GNU/Linux and macOS
+Follow the instructions @ https://github.com/JuliaLang/julia
+
+# Getting OMJUlia
+Clone the repository according to your version of Julia:
 ```
 julia> Pkg.clone("https://github.com/OpenModelica/OMJulia.jl")
 ```
@@ -37,4 +40,4 @@ julia> sendExpression(omc, "getClassNames()")
  :a
 ```
 
-To see the list of available OpenModelicaScripting API see    (https://www.openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html
+To see the list of available commands in the OpenModelicaScripting API see (https://www.openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html
