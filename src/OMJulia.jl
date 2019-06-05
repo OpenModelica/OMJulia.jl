@@ -92,7 +92,7 @@ mutable struct OMCSession
    linearquantitylist
    context
    socket
-   function OMCSession()
+   function OMCSession(omc = nothing)
       this = new()
       this.overridevariables=Dict()
       this.quantitieslist=Any[]
@@ -121,6 +121,7 @@ mutable struct OMCSession
          args4=randstring(10)
       end
       if (Compat.Sys.iswindows())
+         @assert omc == nothing "A Custom omc path for windows is not supported"
          omhome=ENV["OPENMODELICAHOME"]
          ompath=replace(joinpath(omhome,"bin","omc.exe"),r"[/\\]+" => "/")
          #ompath=joinpath(omhome,"bin")
@@ -132,9 +133,17 @@ mutable struct OMCSession
          if (Compat.Sys.isapple())
             #add omc to path if not exist
             ENV["PATH"]=ENV["PATH"]*"/opt/openmodelica/bin"
-            open(pipeline(`omc $args2 $args3$args4`))
+            if (omc != nothing)
+               open(pipeline(`$omc $args2 $args3$args4`))
+            else
+               open(pipeline(`omc $args2 $args3$args4`))
+            end
          else
-            open(pipeline(`omc $args2 $args3$args4`))
+            if (omc != nothing)
+               open(pipeline(`$omc $args2 $args3$args4`))
+            else
+               open(pipeline(`omc $args2 $args3$args4`))
+            end
          end
          portfile=join(["openmodelica.",ENV["USER"],".port.julia.",args4])
       end
