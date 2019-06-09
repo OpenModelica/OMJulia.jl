@@ -27,6 +27,7 @@ CONDITIONS OF OSMC-PL.
 =#
 
 module OMJulia
+global IS_FILE_OMJULIA = false
 using ZMQ
 using Compat
 using DataStructures
@@ -152,8 +153,9 @@ mutable struct OMCSession
       ## Try to find better approach if possible, as sleep does not work properly across different platform
       filedata=""
       while true
-         sleep(0.01) # Necessary or Julia might optimize away checking isfile every iteration
-         if(isfile(fullpath))
+         # Necessary or Julia might optimize away checking isfile every iteration
+         global IS_FILE_OMJULIA = isfile(fullpath) 
+         if(IS_FILE_OMJULIA)
             filedata=read(fullpath,String)
             break
          end
