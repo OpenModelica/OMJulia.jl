@@ -8,9 +8,9 @@ Julia scripting OpenModelica interface
 
 # Installation
 ## For Windows
-Set the OpenModelica to "Path" environment variable for windows:
+Set environment variable `OPENMODELICAHOME` to point to your OpenModelica directory:
 ```
-"C:/OpenModelica1.14.0-dev-64bit/bin"
+"C:/OpenModelica1.14.0-dev-64bit"
 ```
 ## For GNU/Linux and macOS
 Follow the instructions @ https://github.com/JuliaLang/julia

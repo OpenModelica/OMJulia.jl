@@ -93,6 +93,7 @@ mutable struct OMCSession
    linearquantitylist
    context
    socket
+
    function OMCSession(omc = nothing)
       this = new()
       this.overridevariables=Dict()
@@ -122,9 +123,12 @@ mutable struct OMCSession
          args4=randstring(10)
       end
       if (Compat.Sys.iswindows())
-         #@assert omc == nothing "A Custom omc path for windows is not supported"
-         if(omc != nothing)
-            open(pipeline(`$omc $args2 $args3$args4`))
+         if (omc != nothing)
+            omhome = replace(dirname(dirname(omc)),r"[/\\]+" => "/")
+            @info("Setting environment variable OPENMODELICAHOME=\"$omhome\" for this session.")
+            ENV["OPENMODELICAHOME"] = omhome
+            ompath=replace(omc,r"[/\\]+" => "/")
+            open(pipeline(`$ompath $args2 $args3$args4`))
          else
             omhome=ENV["OPENMODELICAHOME"]
             ompath=replace(joinpath(omhome,"bin","omc.exe"),r"[/\\]+" => "/")
@@ -143,7 +147,7 @@ mutable struct OMCSession
             else
                open(pipeline(`omc $args2 $args3$args4`))
             end
-         else
+         else # is linux
             if (omc != nothing)
                open(pipeline(`$omc $args2 $args3$args4`))
             else
