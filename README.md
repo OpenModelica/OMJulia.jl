@@ -15,7 +15,7 @@ Set the OpenModelica to "Path" environment variable for windows:
 ## For GNU/Linux and macOS
 Follow the instructions @ https://github.com/JuliaLang/julia
 
-# Getting OMJUlia
+# Getting OMJulia
 Clone the repository according to your version of Julia:
 ```
 julia> Pkg.clone("https://github.com/OpenModelica/OMJulia.jl")
