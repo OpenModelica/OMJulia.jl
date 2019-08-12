@@ -122,13 +122,17 @@ mutable struct OMCSession
          args4=randstring(10)
       end
       if (Compat.Sys.iswindows())
-         @assert omc == nothing "A Custom omc path for windows is not supported"
-         omhome=ENV["OPENMODELICAHOME"]
-         ompath=replace(joinpath(omhome,"bin","omc.exe"),r"[/\\]+" => "/")
-         #ompath=joinpath(omhome,"bin")
-         #add omc to path if not exist
-         ENV["PATH"]=ENV["PATH"]*ompath
-         open(pipeline(`$ompath $args2 $args3$args4`))
+         #@assert omc == nothing "A Custom omc path for windows is not supported"
+         if(omc != nothing)
+            open(pipeline(`$omc $args2 $args3$args4`))
+         else
+            omhome=ENV["OPENMODELICAHOME"]
+            ompath=replace(joinpath(omhome,"bin","omc.exe"),r"[/\\]+" => "/")
+            #ompath=joinpath(omhome,"bin")
+            #add omc to path if not exist
+            ENV["PATH"]=ENV["PATH"]*ompath
+            open(pipeline(`$ompath $args2 $args3$args4`))
+         end
          portfile=join(["openmodelica.port.julia.",args4])
       else
          if (Compat.Sys.isapple())
@@ -154,7 +158,7 @@ mutable struct OMCSession
       filedata=""
       while true
          # Necessary or Julia might optimize away checking isfile every iteration
-         global IS_FILE_OMJULIA = isfile(fullpath) 
+         global IS_FILE_OMJULIA = isfile(fullpath)
          if(IS_FILE_OMJULIA)
             filedata=read(fullpath,String)
             break
