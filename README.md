@@ -10,7 +10,7 @@ Julia scripting OpenModelica interface
 ## For Windows
 Set the OpenModelica to "Path" environment variable for windows:
 ```
-"C:/OpenModelica1.13.0-dev-64bit/bin"
+"C:/OpenModelica1.14.0-dev-64bit/bin"
 ```
 ## For GNU/Linux and macOS
 Follow the instructions @ https://github.com/JuliaLang/julia
@@ -38,6 +38,20 @@ julia> sendExpression(omc, "model a end a;")
 julia> sendExpression(omc, "getClassNames()")
 1-element Array{Symbol,1}:
  :a
+julia> sendExpression(omc, "loadModel(Modelica)")
+true
+julia> sendExpression(omc, "simulate(Modelica.Electrical.Analog.Examples.CauerLowPassAnalog)")
+Dict{String,Any} with 10 entries:
+  "timeCompile"       => 9.97018
+  "simulationOptions" => "startTime = 0.0, stopTime = 60.0, numberOfIntervals = 500, tolerance = 1e-006, method = 'dassl', fileNamePrefix = 'Modelica.Electrical.Analog.Examples.CauerLowPassAnalog', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''"
+  "messages"          => "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.\nLOG_SUCCESS       | info    | The simulation finished successfully.\n"
+  "timeFrontend"      => 0.45081
+  "timeTotal"         => 11.04
+  "timeTemplates"     => 0.104619
+  "timeSimulation"    => 0.29745
+  "resultFile"        => "PATH/TO/Modelica.Electrical.Analog.Examples.CauerLowPassAnalog_res.mat"
+  "timeSimCode"       => 0.0409317
+  "timeBackend"       => 0.140713
 ```
 
 To see the list of available commands in the OpenModelicaScripting API see (https://www.openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html
