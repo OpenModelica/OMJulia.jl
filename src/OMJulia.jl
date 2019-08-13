@@ -132,6 +132,7 @@ mutable struct OMCSession
               open(pipeline(`$omc $args2 $args3$args4`))
             end
          else
+            omhome=""
             try
                omhome=ENV["OPENMODELICAHOME"]
             catch Exception
