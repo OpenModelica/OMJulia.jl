@@ -124,14 +124,27 @@ mutable struct OMCSession
       if (Compat.Sys.iswindows())
          #@assert omc == nothing "A Custom omc path for windows is not supported"
          if(omc != nothing)
-            open(pipeline(`$omc $args2 $args3$args4`))
+            ompath=replace(omc,r"[/\\]+" => "/")
+            dirpath=dirname(dirname(omc))
+            ## create a omc process with OPENMODELICAHOME set to custom directory
+            @info("Setting environment variable OPENMODELICAHOME=\"$ompath\" for this session.")
+            withenv("OPENMODELICAHOME"=>dirpath) do
+              open(pipeline(`$omc $args2 $args3$args4`))
+            end
          else
-            omhome=ENV["OPENMODELICAHOME"]
+            omhome=""
+            try
+               omhome=ENV["OPENMODELICAHOME"]
+            catch Exception
+               println(Exception, "is not set, Please set the environment Variable")
+               return
+            end
             ompath=replace(joinpath(omhome,"bin","omc.exe"),r"[/\\]+" => "/")
             #ompath=joinpath(omhome,"bin")
-            #add omc to path if not exist
-            ENV["PATH"]=ENV["PATH"]*ompath
-            open(pipeline(`$ompath $args2 $args3$args4`))
+            ## create a omc process with default OPENMODELICAHOME set in environment variable
+            withenv("OPENMODELICAHOME"=>omhome) do
+              open(pipeline(`$ompath $args2 $args3$args4`))
+            end
          end
          portfile=join(["openmodelica.port.julia.",args4])
       else
