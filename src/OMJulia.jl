@@ -1009,10 +1009,14 @@ mutable struct OMCSession
       end
    end
 
-function sendExpression(omc, expr)
+function sendExpression(omc, expr; parsed=true)
    ZMQ.send(omc.socket, expr)
    message=ZMQ.recv(omc.socket)
-   return Parser.parseOM(unsafe_string(message))
+   if parsed
+      return Parser.parseOM(unsafe_string(message))
+   else
+      return unsafe_string(message)
+   end
 end
 
 end
