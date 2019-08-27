@@ -28,6 +28,7 @@ To see the list advanced API, the informations are provided in the UserGuide see
 
 # Usage
 ```
+julia> using OMJulia
 julia> using OMJulia: sendExpression
 julia> omc=OMJulia.OMCSession()
 julia> sendExpression(omc, "getVersion()")
@@ -52,6 +53,8 @@ Dict{String,Any} with 10 entries:
   "resultFile"        => "PATH/TO/Modelica.Electrical.Analog.Examples.CauerLowPassAnalog_res.mat"
   "timeSimCode"       => 0.0409317
   "timeBackend"       => 0.140713
+julia> OMJulia.sendExpression(omc, "quit()",parsed=false)
+"quit requested, shutting server down\n"
 ```
 
 To see the list of available commands in the OpenModelicaScripting API see (https://www.openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html
