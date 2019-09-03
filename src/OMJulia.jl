@@ -67,10 +67,12 @@ mutable struct OMCSession
    sensitivity::Function
    convertMo2FMU::Function
    convertFmu2Mo::Function
+   buildModel::Function
    simulationFlag
    inputFlag
    simulateOptions
    overridevariables
+   simoptoverride
    tempdir
    currentdir
    resultfile
@@ -96,6 +98,7 @@ mutable struct OMCSession
    function OMCSession(omc = nothing)
       this = new()
       this.overridevariables=Dict()
+      this.simoptoverride=Dict()
       this.quantitieslist=Any[]
       this.parameterlist=Dict()
       this.simulateOptions=Dict()
@@ -233,20 +236,19 @@ mutable struct OMCSession
                end
             end
          end
-         buildmodelexpr=join(["buildModel(",modelname,")"])
+         this.buildModel()
+      end
+
+      this.buildModel = function()
+         buildmodelexpr=join(["buildModel(",this.modelname,")"])
          buildModelmsg=this.sendExpression(buildmodelexpr)
          parsebuilexp=Base.Meta.parse(buildModelmsg)
-
          if(!isempty(parsebuilexp.args[2]))
             this.xmlfile=replace(joinpath(this.tempdir,parsebuilexp.args[2]),r"[/\\]+" => "/")
             xmlparse(this)
          else
             return this.sendExpression("getErrorString()")
          end
-         # ZMQ.send(this.socket,buildmodelexpr)
-         # message=ZMQ.recv(this.socket)
-         # this.xmlfile=joinpath(pwd(),join([modelname,"_init.xml"]))
-         # xmlparse(this)
       end
 
       this.getQuantities = function(name=nothing)
@@ -427,29 +429,28 @@ mutable struct OMCSession
             if(isfile(getexefile))
                ## change to tempdir
                cd(this.tempdir)
-               if(!isempty(this.overridevariables))
+               if(!isempty(this.overridevariables) | !isempty(this.simoptoverride))
                   overridelist=Any[]
-                  for k in keys(this.overridevariables)
-                     val=join([k,"=",this.overridevariables[k]])
+                  tmpdict=merge(this.overridevariables,this.simoptoverride)
+                  for k in keys(tmpdict)
+                     val=join([k,"=",tmpdict[k]])
                      push!(overridelist,val)
                   end
                   overridevar=join(["-override=",join(overridelist,",")])
-                  if (this.inputFlag=="true")
-                     createcsvdata(this)
-                     csvinput=join(["-csvInput=",this.csvfile])
-                     run(pipeline(`$getexefile $overridevar $csvinput`,stdout="log.txt",stderr="error.txt"))
-                  else
-                     run(pipeline(`$getexefile $overridevar`,stdout="log.txt",stderr="error.txt"))
-                  end
                else
-                  if (this.inputFlag=="true")
-                     createcsvdata(this)
-                     csvinput=join(["-csvInput=",this.csvfile])
-                     run(pipeline(`$getexefile $csvinput`,stdout="log.txt",stderr="error.txt"))
-                  else
-                     run(pipeline(`$getexefile`,stdout="log.txt",stderr="error.txt"))
-                  end
+                  overridevar=""
                end
+               if (this.inputFlag=="true")
+                  createcsvdata(this)
+                  csvinput=join(["-csvInput=",this.csvfile])
+                  #run(pipeline(`$getexefile $overridevar $csvinput`,stdout="log.txt",stderr="error.txt"))
+               else
+                  csvinput=""
+                  #run(pipeline(`$getexefile $overridevar`,stdout="log.txt",stderr="error.txt"))
+               end
+               #remove empty args in cmd objects
+               cmd=filter!(e->e≠"",[getexefile,overridevar,csvinput])
+               run(pipeline(`$cmd`,stdout="log.txt",stderr="error.txt"))
                this.resultfile=replace(joinpath(this.tempdir,join([this.modelname,"_res.mat"])),r"[/\\]+" => "/")
                this.simulationFlag="True"
             else
@@ -608,7 +609,7 @@ mutable struct OMCSession
                value=split(name,"=")
                if(haskey(this.simulateOptions,value[1]))
                   this.simulateOptions[value[1]]=value[2]
-                  this.overridevariables[value[1]]=value[2]
+                  this.simoptoverride[value[1]]=value[2]
                else
                   return println(value[1], "  is not a SimulationOption")
                end
@@ -618,7 +619,7 @@ mutable struct OMCSession
                   value=split(var,"=")
                   if(haskey(this.simulateOptions,value[1]))
                      this.simulateOptions[value[1]]=value[2]
-                     this.overridevariables[value[1]]=value[2]
+                     this.simoptoverride[value[1]]=value[2]
                   else
                      return println(value[1], "  is not a SimulationOption")
                   end
@@ -961,19 +962,20 @@ mutable struct OMCSession
                                  scalar["value"]="None"
                               end
                            end
-                           if(scalar["variability"]=="parameter")
-                              this.parameterlist[scalar["name"]]=scalar["value"]
+                           if(this.linearFlag=="false")
+                              if(scalar["variability"]=="parameter")
+                                 this.parameterlist[scalar["name"]]=scalar["value"]
+                              end
+                              if(scalar["variability"]=="continuous")
+                                 this.continuouslist[scalar["name"]]=scalar["value"]
+                              end
+                              if(scalar["causality"]=="input")
+                                 this.inputlist[scalar["name"]]=scalar["value"]
+                              end
+                              if(scalar["causality"]=="output")
+                                 this.outputlist[scalar["name"]]=scalar["value"]
+                              end
                            end
-                           if(scalar["variability"]=="continuous")
-                              this.continuouslist[scalar["name"]]=scalar["value"]
-                           end
-                           if(scalar["causality"]=="input")
-                              this.inputlist[scalar["name"]]=scalar["value"]
-                           end
-                           if(scalar["causality"]=="output")
-                              this.outputlist[scalar["name"]]=scalar["value"]
-                           end
-
                            if(this.linearFlag=="true")
                               if(scalar["alias"]=="alias")
                                  name=scalar["name"]
