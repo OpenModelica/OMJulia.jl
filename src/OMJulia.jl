@@ -418,8 +418,16 @@ mutable struct OMCSession
          end
       end
 
-      this.simulate = function()
+      this.simulate = function(;resultfile=nothing)
          #println(this.xmlfile)
+         if(resultfile == nothing)
+            r=""
+            this.resultfile=replace(joinpath(this.tempdir,join([this.modelname,"_res.mat"])),r"[/\\]+" => "/")
+         else
+            r=join(["-r=",resultfile])
+            this.resultfile=replace(joinpath(this.tempdir,resultfile),r"[/\\]+" => "/")
+         end
+
          if(isfile(this.xmlfile))
             if (Compat.Sys.iswindows())
                getexefile=replace(joinpath(this.tempdir,join([this.modelname,".exe"])),r"[/\\]+" => "/")
@@ -449,9 +457,10 @@ mutable struct OMCSession
                   #run(pipeline(`$getexefile $overridevar`,stdout="log.txt",stderr="error.txt"))
                end
                #remove empty args in cmd objects
-               cmd=filter!(e->e≠"",[getexefile,overridevar,csvinput])
+               cmd=filter!(e->e≠"",[getexefile,overridevar,csvinput,r])
+               #println(cmd)
                run(pipeline(`$cmd`,stdout="log.txt",stderr="error.txt"))
-               this.resultfile=replace(joinpath(this.tempdir,join([this.modelname,"_res.mat"])),r"[/\\]+" => "/")
+               #this.resultfile=replace(joinpath(this.tempdir,join([this.modelname,"_res.mat"])),r"[/\\]+" => "/")
                this.simulationFlag="True"
             else
                return println("! Simulation Failed")
@@ -547,22 +556,31 @@ mutable struct OMCSession
          end
 
 
-         this.getSolutions = function(name=nothing)
-            if(!isempty(this.resultfile))
+         this.getSolutions = function(name=nothing; resultfile=nothing)
+            if(resultfile == nothing)
+               resfile=this.resultfile
+            else
+               resfile=resultfile
+            end
+            if(!isfile(resfile))
+               println("ResultFile does not exist !", abspath(resfile))
+               return
+            end
+            if(!isempty(resfile))
                if(name==nothing)
-                  simresultvars=this.sendExpression("readSimulationResultVars(\"" * this.resultfile * "\")")
+                  simresultvars=this.sendExpression("readSimulationResultVars(\"" * resfile * "\")")
                   parsesimresultvars=Base.Meta.parse(simresultvars)
                   return parsesimresultvars.args
                elseif(isa(name,String))
                   resultvar=join(["{",name,"}"])
-                  simres=this.sendExpression("readSimulationResult(\""* this.resultfile * "\","* resultvar *")")
+                  simres=this.sendExpression("readSimulationResult(\""* resfile * "\","* resultvar *")")
                   data=Base.Meta.parse(simres)
                   this.sendExpression("closeSimulationResultFile()")
                   return [convert(Array{Float64,1},plotdata.args) for plotdata in data.args]
                elseif(isa(name,Array))
                   resultvar=join(["{",join(name,","),"}"])
                   #println(resultvar)
-                  simres=this.sendExpression("readSimulationResult(\""* this.resultfile * "\","* resultvar *")")
+                  simres=this.sendExpression("readSimulationResult(\""* resfile * "\","* resultvar *")")
                   data=Base.Meta.parse(simres)
                   plotdata=Array{Float64,1}[]
                   for item in data.args
