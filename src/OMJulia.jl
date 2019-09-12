@@ -692,6 +692,7 @@ function getSolutions(omc, name=nothing; resultfile=nothing)
    if(!isempty(resfile))
       if(name==nothing)
          simresultvars=sendExpression(omc,"readSimulationResultVars(\"" * resfile * "\")")
+         sendExpression(omc,"closeSimulationResultFile()")
          return simresultvars
       elseif(isa(name,String))
          resultvar=join(["{",name,"}"])
