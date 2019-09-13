@@ -81,6 +81,7 @@ mutable struct OMCSession
    linearquantitylist
    context
    socket
+   omcprocess
    function OMCSession(omc = nothing)
       this = new()
       this.overridevariables=Dict()
@@ -118,7 +119,7 @@ mutable struct OMCSession
             ## create a omc process with OPENMODELICAHOME set to custom directory
             @info("Setting environment variable OPENMODELICAHOME=\"$ompath\" for this session.")
             withenv("OPENMODELICAHOME"=>dirpath) do
-               open(pipeline(`$omc $args2 $args3$args4`))
+               this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`))
             end
          else
             omhome=""
@@ -132,7 +133,7 @@ mutable struct OMCSession
             #ompath=joinpath(omhome,"bin")
             ## create a omc process with default OPENMODELICAHOME set in environment variable
             withenv("OPENMODELICAHOME"=>omhome) do
-               open(pipeline(`$ompath $args2 $args3$args4`))
+               this.omcprocess = open(pipeline(`$ompath $args2 $args3$args4`))
             end
          end
          portfile=join(["openmodelica.port.julia.",args4])
@@ -141,15 +142,15 @@ mutable struct OMCSession
             #add omc to path if not exist
             ENV["PATH"]=ENV["PATH"]*"/opt/openmodelica/bin"
             if (omc != nothing)
-               open(pipeline(`$omc $args2 $args3$args4`))
+               this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`))
             else
-               open(pipeline(`omc $args2 $args3$args4`))
+               this.omcprocess = open(pipeline(`omc $args2 $args3$args4`))
             end
          else
             if (omc != nothing)
-               open(pipeline(`$omc $args2 $args3$args4`))
+               this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`))
             else
-               open(pipeline(`omc $args2 $args3$args4`))
+               this.omcprocess = open(pipeline(`omc $args2 $args3$args4`))
             end
          end
          portfile=join(["openmodelica.",ENV["USER"],".port.julia.",args4])
@@ -174,12 +175,16 @@ mutable struct OMCSession
 end
 
 function sendExpression(omc, expr; parsed=true)
-   ZMQ.send(omc.socket, expr)
-   message=ZMQ.recv(omc.socket)
-   if parsed
-      return Parser.parseOM(unsafe_string(message))
+   if(process_running(omc.omcprocess))
+      ZMQ.send(omc.socket, expr)
+      message=ZMQ.recv(omc.socket)
+      if parsed
+         return Parser.parseOM(unsafe_string(message))
+      else
+         return unsafe_string(message)
+      end
    else
-      return unsafe_string(message)
+      return "Process Exited, No connection with OMC. Create a new instance of OMCSession"
    end
 end
 
