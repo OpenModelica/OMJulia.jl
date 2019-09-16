@@ -16,9 +16,9 @@ Set the OpenModelica to "Path" environment variable for windows:
 Follow the instructions @ https://github.com/JuliaLang/julia
 
 # Getting OMJulia
-Clone the repository according to your version of Julia:
 ```
-julia> Pkg.clone("https://github.com/OpenModelica/OMJulia.jl")
+julia> import Pkg
+julia> Pkg.add(PackageSpec(url=”https://github.com/OpenModelica/OMJulia.jl”))
 ```
 
 # Advanced API Scripting and UserGuide
