@@ -45,7 +45,9 @@ export sendExpression,ModelicaSystem,
        ## simulation
        simulate,
        ## Linearizion
-       linearize,getLinearInputs,getLinearOutputs,getLinearStates,getLinearizationOptions,setLinearizationOptions
+       linearize,getLinearInputs,getLinearOutputs,getLinearStates,getLinearizationOptions,setLinearizationOptions,
+       ## sensitivity analysis
+       sensitivity
 
 include("parser.jl")
 
@@ -641,7 +643,7 @@ function sensitivity(omc,Vp,Vv,Ve=[1e-2])
          Ve = Ve[1:nVp] # truncates Ve to same length as Vp
       end
       # Nominal parameters p0
-      par0 = [Base.parse(Float64,pp) for pp in omc.getParameters(Vp)]
+      par0 = [Base.parse(Float64,pp) for pp in getParameters(omc,Vp)]
       # eXcitation parameters parX
       parX = [par0[i]*(1+Ve[i]) for i in 1:nVp]
       # Combine parameter names and parameter values into vector of strings
