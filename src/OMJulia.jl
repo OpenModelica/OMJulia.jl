@@ -113,7 +113,7 @@ mutable struct OMCSession
       else
          args4=randstring(10)
       end
-      if (Compat.Sys.iswindows())
+      if (Base.Sys.iswindows())
          #@assert omc == nothing "A Custom omc path for windows is not supported"
          if(omc != nothing)
             ompath=replace(omc,r"[/\\]+" => "/")
@@ -140,7 +140,7 @@ mutable struct OMCSession
          end
          portfile=join(["openmodelica.port.julia.",args4])
       else
-         if (Compat.Sys.isapple())
+         if (Base.Sys.isapple())
             #add omc to path if not exist
             ENV["PATH"]=ENV["PATH"]*"/opt/openmodelica/bin"
             if (omc != nothing)
@@ -533,12 +533,13 @@ end
 
 """
 function which simulates the modelica model based on the
-different settings made by users. Accepts two arguments
-second argument resultfile is optional, An example usage
+different settings made by users. Accepts three arguments
+second argument resultfile and third argument simflags are optional, An example usage
 >> simulate(omc) // default resultfilename is used
 >> simulate(omc,resultfile="tmpresult.mat") // user provided result file shall be used
+>> simulate(omc, simflags="-noEmitEvent -override=e=0.3,g=9.3") // set runtime simulations flags provided by user
 """
-function simulate(omc; resultfile=nothing)
+function simulate(omc; resultfile=nothing, simflags=nothing)
    #println(this.xmlfile)
    if(resultfile == nothing)
       r=""
@@ -547,9 +548,13 @@ function simulate(omc; resultfile=nothing)
       r=join(["-r=",resultfile])
       omc.resultfile=replace(joinpath(omc.tempdir,resultfile),r"[/\\]+" => "/")
    end
+   
+   if(simflags == nothing)
+      simflags=""
+   end
 
    if(isfile(omc.xmlfile))
-      if (Compat.Sys.iswindows())
+      if (Base.Sys.iswindows())
          getexefile=replace(joinpath(omc.tempdir,join([omc.modelname,".exe"])),r"[/\\]+" => "/")
       else
          getexefile=replace(joinpath(omc.tempdir,omc.modelname),r"[/\\]+" => "/")
@@ -577,7 +582,7 @@ function simulate(omc; resultfile=nothing)
             #run(pipeline(`$getexefile $overridevar`,stdout="log.txt",stderr="error.txt"))
          end
          #remove empty args in cmd objects
-         cmd=filter!(e->e≠"",[getexefile,overridevar,csvinput,r])
+         cmd=filter!(e->e≠"",[getexefile,overridevar,csvinput,r,simflags])
          #println(cmd)
          run(pipeline(`$cmd`,stdout="log.txt",stderr="error.txt"))
          #omc.resultfile=replace(joinpath(omc.tempdir,join([omc.modelname,"_res.mat"])),r"[/\\]+" => "/")
