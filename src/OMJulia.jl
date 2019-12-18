@@ -29,7 +29,6 @@ CONDITIONS OF OSMC-PL.
 module OMJulia
 global IS_FILE_OMJULIA = false
 using ZMQ
-using Compat
 using DataStructures
 using LightXML
 using DataFrames
