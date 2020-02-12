@@ -191,11 +191,20 @@ end
 
 """
 Main function Which constructs the datas and parameters needed for simulation
-linearization of a model, The function accepts four aguments. The fourth argument
-is library is optional, An example usage is given below
-ModelicaSystem(obj,"BouncingBall.mo","BouncingBall",["Modelica", "SystemDynamics"])
+linearization of a model, The function accepts five aguments. The fourth argument
+is library is optional and fifth argument setCommandLineOptions which is a keyword argument is also optional, An example usage is given below
+ModelicaSystem(obj,"BouncingBall.mo","BouncingBall",["Modelica", "SystemDynamics"],commandLineOptions="-d=newInst")
 """
-function ModelicaSystem(omc,filename, modelname, library=nothing)
+function ModelicaSystem(omc,filename, modelname, library=nothing; commandLineOptions=nothing)
+   ## check for commandLineOptions
+   if(commandLineOptions!=nothing)
+      exp=join(["setCommandLineOptions(","","\"",commandLineOptions,"\"" ,")"])
+      cmdexp = sendExpression(omc,exp)
+      if(!cmdexp)
+         return sendExpression(omc,"getErrorString()")
+      end
+   end
+
    omc.filepath=filename
    omc.modelname=modelname
    filepath=replace(abspath(filename),r"[/\\]+" => "/")
@@ -547,7 +556,7 @@ function simulate(omc; resultfile=nothing, simflags=nothing)
       r=join(["-r=",resultfile])
       omc.resultfile=replace(joinpath(omc.tempdir,resultfile),r"[/\\]+" => "/")
    end
-   
+
    if(simflags == nothing)
       simflags=""
    end
