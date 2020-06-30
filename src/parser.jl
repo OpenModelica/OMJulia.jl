@@ -1,5 +1,10 @@
 module Parser
 
+# Proposed for Julia 1.5.x
+#if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@optlevel"))
+#    @eval Base.Experimental.@optlevel 1
+#end
+
 struct Identifier
   id::String
 end
