@@ -18,7 +18,7 @@ Follow the instructions @ https://github.com/JuliaLang/julia
 # Getting OMJulia
 ```
 julia> import Pkg
-julia> Pkg.add(PackageSpec(url=”https://github.com/OpenModelica/OMJulia.jl”))
+julia> Pkg.add(Pkg.PackageSpec(url="https://github.com/OpenModelica/OMJulia.jl"))
 ```
 
 # Advanced API Scripting and UserGuide
