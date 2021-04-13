@@ -158,6 +158,7 @@ mutable struct OMCSession
       end
       #sleep(5)
       fullpath=joinpath(tempdir(),portfile)
+      @info("Path to zmq file=\"$fullpath\"")
       ## Try to find better approach if possible, as sleep does not work properly across different platform
       filedata=""
       while true
@@ -544,7 +545,7 @@ function which simulates the modelica model based on the
 different settings made by users. Accepts three arguments
 second argument resultfile and third argument simflags are optional, An example usage
 >> simulate(omc) // default resultfilename is used
->> simulate(omc,resultfile="tmpresult.mat") // user provided result file shall be used
+>> simulate(omc, resultfile="tmpresult.mat") // user provided result file shall be used
 >> simulate(omc, simflags="-noEmitEvent -override=e=0.3,g=9.3") // set runtime simulations flags provided by user
 """
 function simulate(omc; resultfile=nothing, simflags=nothing)
@@ -592,7 +593,17 @@ function simulate(omc; resultfile=nothing, simflags=nothing)
          #remove empty args in cmd objects
          cmd=filter!(e->e≠"",[getexefile,overridevar,csvinput,r,simflags])
          #println(cmd)
-         run(pipeline(`$cmd`,stdout="log.txt",stderr="error.txt"))
+         if (Base.Sys.iswindows())
+           installPath = sendExpression(omc, "getInstallationDirectoryPath()")
+           envPath = ENV["PATH"]
+           newPath = "$(envPath);$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp"
+           # println("Path: $newPath")
+           withenv("PATH"=>newPath) do
+             run(pipeline(`$cmd`,stdout="log.txt",stderr="error.txt"))
+           end
+         else
+           run(pipeline(`$cmd`,stdout="log.txt",stderr="error.txt"))
+         end
          #omc.resultfile=replace(joinpath(omc.tempdir,join([omc.modelname,"_res.mat"])),r"[/\\]+" => "/")
          omc.simulationFlag=true
       else
