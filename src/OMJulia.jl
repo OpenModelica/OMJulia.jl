@@ -42,7 +42,7 @@ export sendExpression,ModelicaSystem,
        ## setMethods
        setInputs,setParameters,setSimulationOptions,
        ## simulation
-       simulate,
+       simulate,buildModel,
        ## Linearizion
        linearize,getLinearInputs,getLinearOutputs,getLinearStates,getLinearizationOptions,setLinearizationOptions,
        ## sensitivity analysis
@@ -599,10 +599,10 @@ function simulate(omc; resultfile=nothing, simflags=nothing)
            newPath = "$(envPath);$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp"
            # println("Path: $newPath")
            withenv("PATH"=>newPath) do
-             run(pipeline(`$cmd`,stdout="log.txt",stderr="error.txt"))
+             run(pipeline(`$cmd`))
            end
          else
-           run(pipeline(`$cmd`,stdout="log.txt",stderr="error.txt"))
+           run(pipeline(`$cmd`))
          end
          #omc.resultfile=replace(joinpath(omc.tempdir,join([omc.modelname,"_res.mat"])),r"[/\\]+" => "/")
          omc.simulationFlag=true
@@ -753,10 +753,13 @@ function setParameters(omc,name)
       #setxmlfileexpr="setInitXmlStartValue(\""* this.xmlfile * "\",\""* value[1]* "\",\""*value[2]*"\",\""*this.xmlfile*"\")"
       #println(haskey(this.parameterlist, value[1]))
       if(haskey(omc.parameterlist,value[1]))
+         # should we use this ???
+         #setparameterValue = join(["setParameterValue(",omc.modelname,",", value[1],",",value[2],")"])
+         #println(setparameterValue)
          omc.parameterlist[value[1]]=value[2]
          omc.overridevariables[value[1]]=value[2]
       else
-         return println(value[1], "is not a parameter")
+         return println(value[1], " is not a parameter")
       end
       #omc.sendExpression(setxmlfileexpr)
    elseif(isa(name,Array))
