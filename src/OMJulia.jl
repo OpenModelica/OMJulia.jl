@@ -368,6 +368,16 @@ function getQuantities(omc,name=nothing)
    end
 end
 
+function getQuantitiesHelper(omc, name=nothing)
+   for x in omc.quantitieslist
+      if (x["name"] == name)
+         return x
+      end
+   end
+   println("| info | getQuantities() failed: ","\"",name,"\"", " does not exist")
+   return []
+end
+
 """
 standard getXXX() API
 function same as getQuantities(), but returns all the variables as table
@@ -752,28 +762,47 @@ function setParameters(omc,name)
       value=split(name,"=")
       #setxmlfileexpr="setInitXmlStartValue(\""* this.xmlfile * "\",\""* value[1]* "\",\""*value[2]*"\",\""*this.xmlfile*"\")"
       #println(haskey(this.parameterlist, value[1]))
-      if(haskey(omc.parameterlist,value[1]))
+      if (haskey(omc.parameterlist,value[1]))
          # should we use this ???
          #setparameterValue = join(["setParameterValue(",omc.modelname,",", value[1],",",value[2],")"])
          #println(setparameterValue)
-         omc.parameterlist[value[1]]=value[2]
-         omc.overridevariables[value[1]]=value[2]
+         if (isParameterChangeable(omc, value[1], value[2]))
+            omc.parameterlist[value[1]]=value[2]
+            omc.overridevariables[value[1]]=value[2]
+         end
       else
-         return println(value[1], " is not a parameter")
+         println("| info |  setParameters() failed: ","\"",value[1],"\"", " is not a parameter")
       end
       #omc.sendExpression(setxmlfileexpr)
    elseif(isa(name,Array))
       name=strip_space(name)
       for var in name
          value=split(var,"=")
-         if(haskey(omc.parameterlist,value[1]))
-            omc.parameterlist[value[1]]=value[2]
-            omc.overridevariables[value[1]]=value[2]
+         if (haskey(omc.parameterlist, value[1]))
+            if (isParameterChangeable(omc, value[1], value[2]))
+               omc.parameterlist[value[1]]=value[2]
+               omc.overridevariables[value[1]]=value[2]
+            end
          else
-            return println(value[1], "is not a parameter")
+            println("| info |  setParameters() failed: ","\"",value[1],"\"", " is not a parameter")
          end
       end
    end
+end
+
+"""
+check for parameter modifiable or not
+"""
+function isParameterChangeable(omc, name, value)
+   q = getQuantities(omc, String(name))
+   if (isempty(q))
+      println(name, " does not exist in the model")
+      return false
+   elseif (q[1]["changeable"] == "false")
+      println("| info |  setParameters() failed : It is not possible to set the following signal " ,"\"" , name ,"\"", ", It seems to be structural, final, protected or evaluated or has a non-constant binding, use sendExpression(setParameterValue(",omc.modelname,", ", name,", ", value,"), parsed=false)" , " and rebuild the model using buildModel() API")
+      return false
+   end
+   return true
 end
 
 """
