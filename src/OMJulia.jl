@@ -368,13 +368,15 @@ function getQuantities(omc,name=nothing)
    end
 end
 
-function getQuantitiesHelper(omc, name=nothing)
+function getQuantitiesHelper(omc, name=nothing; verbose=true)
    for x in omc.quantitieslist
       if (x["name"] == name)
          return x
       end
    end
-   println("| info | getQuantities() failed: ","\"",name,"\"", " does not exist")
+   if verbose
+      println("| info | getQuantities() failed: ","\"",name,"\"", " does not exist")
+   end
    return []
 end
 
@@ -756,7 +758,7 @@ end
 standard setXXX() API
 function which sets new Parameter values for parameter variables defined by users
 """
-function setParameters(omc,name)
+function setParameters(omc,name;verbose=true)
    if(isa(name,String))
       name=strip_space(name)
       value=split(name,"=")
@@ -771,7 +773,9 @@ function setParameters(omc,name)
             omc.overridevariables[value[1]]=value[2]
          end
       else
-         println("| info |  setParameters() failed: ","\"",value[1],"\"", " is not a parameter")
+         if verbose
+            println("| info |  setParameters() failed: ","\"",value[1],"\"", " is not a parameter")
+         end
       end
       #omc.sendExpression(setxmlfileexpr)
    elseif(isa(name,Array))
@@ -784,7 +788,9 @@ function setParameters(omc,name)
                omc.overridevariables[value[1]]=value[2]
             end
          else
-            println("| info |  setParameters() failed: ","\"",value[1],"\"", " is not a parameter")
+            if verbose
+               println("| info |  setParameters() failed: ","\"",value[1],"\"", " is not a parameter")
+            end
          end
       end
    end
@@ -793,13 +799,15 @@ end
 """
 check for parameter modifiable or not
 """
-function isParameterChangeable(omc, name, value)
+function isParameterChangeable(omc, name, value; verbose=true)
    q = getQuantities(omc, String(name))
    if (isempty(q))
       println(name, " does not exist in the model")
       return false
    elseif (q[1]["changeable"] == "false")
-      println("| info |  setParameters() failed : It is not possible to set the following signal " ,"\"" , name ,"\"", ", It seems to be structural, final, protected or evaluated or has a non-constant binding, use sendExpression(setParameterValue(",omc.modelname,", ", name,", ", value,"), parsed=false)" , " and rebuild the model using buildModel() API")
+      if verbose
+         println("| info |  setParameters() failed : It is not possible to set the following signal " ,"\"" , name ,"\"", ", It seems to be structural, final, protected or evaluated or has a non-constant binding, use sendExpression(setParameterValue(",omc.modelname,", ", name,", ", value,"), parsed=false)" , " and rebuild the model using buildModel() API")
+      end
       return false
    end
    return true
