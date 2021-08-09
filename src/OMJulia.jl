@@ -202,7 +202,7 @@ function ModelicaSystem(omc, filename, modelname, library=nothing; commandLineOp
         exp = join(["setCommandLineOptions(","","\"",commandLineOptions,"\"" ,")"])
         cmdexp = sendExpression(omc, exp)
         if (!cmdexp)
-            return sendExpression(omc, "getErrorString()")
+            return println(sendExpression(omc, "getErrorString()"))
         end
     end
 
@@ -212,7 +212,7 @@ function ModelicaSystem(omc, filename, modelname, library=nothing; commandLineOp
     if (isfile(filepath))
         loadmsg = sendExpression(omc, "loadFile(\"" * filepath * "\")")
         if (!loadmsg)
-            return sendExpression(omc, "getErrorString()")
+            return println(sendExpression(omc, "getErrorString()"))
         end
     else
         return println(filename, "! NotFound")
@@ -224,34 +224,58 @@ function ModelicaSystem(omc, filename, modelname, library=nothing; commandLineOp
         return println(omc.tempdir, " cannot be created")
     end
     sendExpression(omc, "cd(\"" * omc.tempdir * "\")")
+    # load Libraries provided by users
     if (library != nothing)
         if (isa(library, String))
-            if (isfile(library))
-                libfile = replace(abspath(library), r"[/\\]+" => "/")
-                libfilemsg = sendExpression(omc, "loadFile(\"" * libfile * "\")")
-                if (!libfilemsg)
-                    return sendExpression(omc, "getErrorString()")
-                end
+            loadLibraryHelper(omc, library)
+        # allow users to provide library version eg.(Modelica, "3.2.3")
+        elseif (isa(library, Tuple{String, String}))
+            if (!isempty(library[2]))
+                loadLibraryHelper(omc, library[1], library[2])
             else
-                libname = join(["loadModel(",library,")"])
-                sendExpression(omc, libname)
+                loadLibraryHelper(omc, library[1])
             end
         elseif (isa(library, Array))
             for i in library
-                if (isfile(i))
-                    libfile = replace(abspath(i), r"[/\\]+" => "/")
-                    libfilemsg = sendExpression(omc, "loadFile(\"" * libfile * "\")")
-                    if (!libfilemsg)
-                        return sendExpression(omc, "getErrorString()")
+                # allow users to provide library version eg.(Modelica, "3.2.3")
+                if isa(i, Tuple{String, String})
+                    if (!isempty(i[2]))
+                        loadLibraryHelper(omc, i[1], i[2])
+                    else
+                        loadLibraryHelper(omc, i[1])
                     end
+                elseif isa(i, String)
+                    loadLibraryHelper(omc, i)
                 else
-                    libname = join(["loadModel(",i,")"])
-                    sendExpression(omc, libname)
+                    println("| info | loadLibrary() failed, Unknown type detected: ", i , " is of type ",  typeof(i), ", The following types are supported\n1)Strings\n2)Tuple{String, String}\n3)Array{Strings}\n4)Array{Tuple{String, String}}" )
                 end
             end
+        else
+            println("| info | loadLibrary() failed, Unknown type detected: ", i , " is of type ",  typeof(i), ", The following types are supported\n1)Strings\n2)Tuple{String, String}\n3)Array{Strings}\n4)Array{Tuple{String, String}}" )
         end
     end
     buildModel(omc)
+end
+
+function loadLibraryHelper(omc, libname, version=nothing)
+    if (isfile(libname))
+        libfile = replace(abspath(libname), r"[/\\]+" => "/")
+        libfilemsg = sendExpression(omc, "loadFile(\"" * libfile * "\")")
+        if (!libfilemsg)
+            return println(sendExpression(omc, "getErrorString()"))
+        end
+    else
+        if version == nothing
+            libname = join(["loadModel(", libname, ")"])
+        else
+            libname = join(["loadModel(", libname, ", ", "{", "\"", version, "\"", "}", ")"])
+        end
+        #println(libname)
+        result = sendExpression(omc, libname)
+        if (!result)
+            return println(sendExpression(omc, "getErrorString()"))
+        end
+    end
 end
 
 """
@@ -265,7 +289,7 @@ function buildModel(omc)
         omc.xmlfile = replace(joinpath(omc.tempdir, buildModelmsg[2]), r"[/\\]+" => "/")
         xmlparse(omc)
     else
-        return sendExpression(omc, "getErrorString()")
+        return println(sendExpression(omc, "getErrorString()"))
     end
 end
 
