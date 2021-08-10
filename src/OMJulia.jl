@@ -1044,12 +1044,19 @@ function linearize(omc)
     # println(linearexpr)
     sendExpression(omc, linearexpr)
     omc.resultfile = replace(joinpath(omc.tempdir, join([omc.modelname,"_res.mat"])), r"[/\\]+" => "/")
-    omc.linearmodelname = join(["linear_",omc.modelname])
+    omc.linearmodelname = "linearized_model"
     omc.linearfile = joinpath(omc.tempdir, join([omc.linearmodelname,".mo"]))
+
+    # support older openmodelica versions before OpenModelica v1.16.2 where linearize() generates "linear_modelname.mo" file
+    if(!isfile(omc.linearfile))
+        omc.linearmodelname = join(["linear_", omc.modelname])
+        omc.linearfile = joinpath(omc.tempdir, join([omc.linearmodelname, ".mo"]))
+    end
+
     if (isfile(omc.linearfile))
         loadmsg = sendExpression(omc, "loadFile(\"" * omc.linearfile * "\")")
         if (!loadmsg)
-            return sendExpression(omc, "getErrorString()")
+            return println(sendExpression(omc, "getErrorString()"))
         end
         cNames = sendExpression(omc, "getClassNames()")
         buildmodelexpr = join(["buildModel(",cNames[1],")"])
@@ -1068,11 +1075,11 @@ function linearize(omc)
             linearMatrix = getLinearMatrix(omc)
             return linearMatrix
         else
-            return sendExpression(omc, "getErrorString()")
+            return println("Building linearized Model failed: ", sendExpression(omc, "getErrorString()"))
         end
     else
         errormsg = sendExpression(omc, "getErrorString()")
-        println(errormsg)
+        return println("Linearization failed: ","\"" , omc.linearfile,"\"" ," not found \n", errormsg)
     end
 end
 
