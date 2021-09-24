@@ -217,8 +217,6 @@ function ModelicaSystem(omc, filename, modelname, library=nothing; commandLineOp
     else
         return println(filename, "! NotFound")
     end
-    omc.tempdir = replace(joinpath(pwd(), join(["zz_",Random.randstring(5),".tmp"])), r"[/\\]+" => "/")
-    mkdir(omc.tempdir)
     omc.tempdir = replace(mktempdir(), r"[/\\]+" => "/")
     if (!isdir(omc.tempdir))
         return println(omc.tempdir, " cannot be created")
