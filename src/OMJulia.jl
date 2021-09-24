@@ -586,7 +586,7 @@ second argument resultfile and third argument simflags are optional, An example 
 >> simulate(omc, resultfile="tmpresult.mat") // user provided result file shall be used
 >> simulate(omc, simflags="-noEmitEvent -override=e=0.3,g=9.3") // set runtime simulations flags provided by user
 """
-function simulate(omc, resultfile=nothing, simflags=nothing; verbose=true)
+function simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
     # println(this.xmlfile)
     if (resultfile == nothing)
         r = ""
