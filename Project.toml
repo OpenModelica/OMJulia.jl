@@ -1,7 +1,7 @@
 name = "OMJulia"
 uuid = "0f4fe800-344e-11e9-2949-fb537ad918e1"
-authors = ["Martin Sjölund <martin.sjolund@liu.se>"]
-version = "0.1.0"
+authors = ["Martin Sjölund <martin.sjolund@liu.se>", "Arunkumar Palanisamy" <arunkumar.palanisamy@liu.se>]
+version = "0.2.0"
 
 [deps]
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
