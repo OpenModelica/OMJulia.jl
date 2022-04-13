@@ -1,6 +1,6 @@
 name = "OMJulia"
 uuid = "0f4fe800-344e-11e9-2949-fb537ad918e1"
-authors = ["Martin Sjölund <martin.sjolund@liu.se>", "Arunkumar Palanisamy" <arunkumar.palanisamy@liu.se>]
+authors = ["Martin Sjölund <martin.sjolund@liu.se>", "Arunkumar Palanisamy <arunkumar.palanisamy@liu.se>"]
 version = "0.2.0"
 
 [deps]
