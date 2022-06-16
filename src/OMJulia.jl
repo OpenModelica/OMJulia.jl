@@ -67,6 +67,7 @@ mutable struct OMCSession
     modelname
     xmlfile
     csvfile
+    variableFilter
     quantitieslist
     parameterlist
     inputlist
@@ -100,6 +101,7 @@ mutable struct OMCSession
         this.simulationFlag = false
         this.inputFlag = false
         this.csvfile = ""
+        this.variableFilter = ""
         this.tempdir = ""
         this.linearfile = ""
         this.linearFlag = false
@@ -196,7 +198,7 @@ linearization of a model, The function accepts five aguments. The fourth argumen
 is library is optional and fifth argument setCommandLineOptions which is a keyword argument is also optional, An example usage is given below
 ModelicaSystem(obj,"BouncingBall.mo","BouncingBall",["Modelica", "SystemDynamics"],commandLineOptions="-d=newInst")
 """
-function ModelicaSystem(omc, filename, modelname, library=nothing; commandLineOptions=nothing)
+function ModelicaSystem(omc, filename, modelname, library=nothing; commandLineOptions=nothing, variableFilter=nothing)
     ## check for commandLineOptions
     if (commandLineOptions != nothing)
         exp = join(["setCommandLineOptions(","","\"",commandLineOptions,"\"" ,")"])
@@ -208,6 +210,7 @@ function ModelicaSystem(omc, filename, modelname, library=nothing; commandLineOp
 
     omc.filepath = filename
     omc.modelname = modelname
+    omc.variableFilter = variableFilter
     filepath = replace(abspath(filename), r"[/\\]+" => "/")
     if (isfile(filepath))
         loadmsg = sendExpression(omc, "loadFile(\"" * filepath * "\")")
@@ -279,8 +282,22 @@ end
 """
 Standard buildModel API which builds the modelica model
 """
-function buildModel(omc)
-    buildmodelexpr = join(["buildModel(",omc.modelname,")"])
+function buildModel(omc; variableFilter=nothing)
+    if (variableFilter != nothing)
+        omc.variableFilter = variableFilter
+    end
+    # println(omc.variableFilter)
+
+    if (omc.variableFilter != nothing)
+        varFilter = join(["variableFilter=", "\"", omc.variableFilter, "\""])
+    else
+        varFilter = join(["variableFilter=\"", ".*" ,"\""])
+    end
+    # println(varFilter)
+
+    buildmodelexpr = join(["buildModel(",omc.modelname,", ", varFilter,")"])
+    # println(buildmodelexpr)
+
     buildModelmsg = sendExpression(omc, buildmodelexpr)
     # parsebuilexp=Base.Meta.parse(buildModelmsg)
     if (!isempty(buildModelmsg[2]))
