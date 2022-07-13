@@ -158,19 +158,18 @@ mutable struct OMCSession
             end
             portfile = join(["openmodelica.",ENV["USER"],".port.julia.",args4])
         end
-        # sleep(5)
         fullpath = joinpath(tempdir(), portfile)
         @info("Path to zmq file=\"$fullpath\"")
         ## Try to find better approach if possible, as sleep does not work properly across different platform
-        filedata = ""
-        while true
-            # Necessary or Julia might optimize away checking isfile every iteration
-            global IS_FILE_OMJULIA = isfile(fullpath)
-            if (IS_FILE_OMJULIA)
-                filedata = read(fullpath, String)
-                break
-            end
+        tries = 0
+        while tries < 100 && !isfile(fullpath)
+            sleep(0.02)
+            tries += 1
         end
+        if tries >= 100
+            error("Timeout: ZMQ server port file \"$fullpath\" not created yet.")
+        end
+        filedata = read(fullpath, String)
         this.context = ZMQ.Context()
         this.socket = ZMQ.Socket(this.context, REQ)
         ZMQ.connect(this.socket, filedata)
