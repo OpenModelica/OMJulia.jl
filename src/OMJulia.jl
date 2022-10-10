@@ -115,8 +115,8 @@ mutable struct OMCSession
             args4 = randstring(10)
         end
         if (Base.Sys.iswindows())
-            # @assert omc == nothing "A Custom omc path for windows is not supported"
-            if (omc != nothing)
+            # @assert omc === nothing "A Custom omc path for windows is not supported"
+            if (omc !== nothing)
                 ompath = replace(omc, r"[/\\]+" => "/")
                 dirpath = dirname(dirname(omc))
                 ## create a omc process with OPENMODELICAHOME set to custom directory
@@ -144,13 +144,13 @@ mutable struct OMCSession
             if (Base.Sys.isapple())
                 # add omc to path if not exist
                 ENV["PATH"] = ENV["PATH"] * "/opt/openmodelica/bin"
-                if (omc != nothing)
+                if (omc !== nothing)
                     this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`))
                 else
                     this.omcprocess = open(pipeline(`omc $args2 $args3$args4`))
                 end
             else
-                if (omc != nothing)
+                if (omc !== nothing)
                     this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`))
                 else
                     this.omcprocess = open(pipeline(`omc $args2 $args3$args4`))
@@ -199,7 +199,7 @@ ModelicaSystem(obj,"BouncingBall.mo","BouncingBall",["Modelica", "SystemDynamics
 """
 function ModelicaSystem(omc, filename, modelname, library=nothing; commandLineOptions=nothing, variableFilter=nothing)
     ## check for commandLineOptions
-    if (commandLineOptions != nothing)
+    if (commandLineOptions !== nothing)
         exp = join(["setCommandLineOptions(","","\"",commandLineOptions,"\"" ,")"])
         cmdexp = sendExpression(omc, exp)
         if (!cmdexp)
@@ -225,7 +225,7 @@ function ModelicaSystem(omc, filename, modelname, library=nothing; commandLineOp
     end
     sendExpression(omc, "cd(\"" * omc.tempdir * "\")")
     # load Libraries provided by users
-    if (library != nothing)
+    if (library !== nothing)
         if (isa(library, String))
             loadLibraryHelper(omc, library)
         # allow users to provide library version eg.(Modelica, "3.2.3")
@@ -265,7 +265,7 @@ function loadLibraryHelper(omc, libname, version=nothing)
             return println(sendExpression(omc, "getErrorString()"))
         end
     else
-        if version == nothing
+        if version === nothing
             libname = join(["loadModel(", libname, ")"])
         else
             libname = join(["loadModel(", libname, ", ", "{", "\"", version, "\"", "}", ")"])
@@ -282,12 +282,12 @@ end
 Standard buildModel API which builds the modelica model
 """
 function buildModel(omc; variableFilter=nothing)
-    if (variableFilter != nothing)
+    if (variableFilter !== nothing)
         omc.variableFilter = variableFilter
     end
     # println(omc.variableFilter)
 
-    if (omc.variableFilter != nothing)
+    if (omc.variableFilter !== nothing)
         varFilter = join(["variableFilter=", "\"", omc.variableFilter, "\""])
     else
         varFilter = join(["variableFilter=\"", ".*" ,"\""])
@@ -340,7 +340,7 @@ function xmlparse(omc)
                         subchild = child_elements(r)
                         for s in subchild
                             value = attribute(s, "start")
-                            if (value != nothing)
+                            if (value !== nothing)
                                 scalar["value"] = value
                             else
                                 scalar["value"] = "None"
@@ -401,7 +401,7 @@ standard getXXX() API
 function which return list of all variables parsed from xml file
 """
 function getQuantities(omc, name=nothing)
-    if (name == nothing)
+    if (name === nothing)
         return omc.quantitieslist
     elseif (isa(name, String))
         return [x for x in omc.quantitieslist if x["name"] == name]
@@ -455,7 +455,7 @@ standard getXXX() API
 function which returns the parameter variables parsed from xmlfile
 """
 function getParameters(omc, name=nothing)
-    if (name == nothing)
+    if (name === nothing)
         return omc.parameterlist
     elseif (isa(name, String))
         return get(omc.parameterlist, name, 0)
@@ -469,7 +469,7 @@ standard getXXX() API
 function which returns the SimulationOption variables parsed from xmlfile
 """
 function getSimulationOptions(omc, name=nothing)
-    if (name == nothing)
+    if (name === nothing)
         return omc.simulateOptions
     elseif (isa(name, String))
         return get(omc.simulateOptions, name, 0)
@@ -484,7 +484,7 @@ function which returns the continuous variables parsed from xmlfile
 """
 function getContinuous(omc, name=nothing)
     if (omc.simulationFlag == false)
-        if (name == nothing)
+        if (name === nothing)
             return omc.continuouslist
         elseif (isa(name, String))
             return get(omc.continuouslist, name, 0)
@@ -493,7 +493,7 @@ function getContinuous(omc, name=nothing)
         end
     end
     if (omc.simulationFlag == true)
-        if (name == nothing)
+        if (name === nothing)
             for name in keys(omc.continuouslist)
                 ## failing for variables with $ sign
                 ## println(name)
@@ -537,7 +537,7 @@ standard getXXX() API
 function which returns the input variables parsed from xmlfile
 """
 function getInputs(omc, name=nothing)
-    if (name == nothing)
+    if (name === nothing)
         return omc.inputlist
     elseif (isa(name, String))
         return get(omc.inputlist, name, 0)
@@ -552,7 +552,7 @@ function which returns the output variables parsed from xmlfile
 """
 function getOutputs(omc, name=nothing)
     if (omc.simulationFlag == false)
-        if (name == nothing)
+        if (name === nothing)
             return omc.outputlist
         elseif (isa(name, String))
             return get(omc.outputlist, name, 0)
@@ -561,7 +561,7 @@ function getOutputs(omc, name=nothing)
         end
     end
     if (omc.simulationFlag == true)
-        if (name == nothing)
+        if (name === nothing)
             for name in keys(omc.outputlist)
                 value = getSolutions(omc, name)
                 value1 = value[1]
@@ -604,7 +604,7 @@ second argument resultfile and third argument simflags are optional, An example 
 """
 function simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
     # println(this.xmlfile)
-    if (resultfile == nothing)
+    if (resultfile === nothing)
         r = ""
         omc.resultfile = replace(joinpath(omc.tempdir, join([omc.modelname,"_res.mat"])), r"[/\\]+" => "/")
     else
@@ -612,7 +612,7 @@ function simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
         omc.resultfile = replace(joinpath(omc.tempdir, resultfile), r"[/\\]+" => "/")
     end
 
-    if (simflags == nothing)
+    if (simflags === nothing)
         simflags = ""
     end
 
@@ -770,7 +770,7 @@ Function which reads the result file and return the simulation results to user
 which can be used for plotting or further anlaysis
 """
 function getSolutions(omc, name=nothing; resultfile=nothing)
-    if (resultfile == nothing)
+    if (resultfile === nothing)
         resfile = omc.resultfile
     else
         resfile = resultfile
@@ -780,7 +780,7 @@ function getSolutions(omc, name=nothing; resultfile=nothing)
         return
     end
     if (!isempty(resfile))
-        if (name == nothing)
+        if (name === nothing)
             simresultvars = sendExpression(omc, "readSimulationResultVars(\"" * resfile * "\")")
             sendExpression(omc, "closeSimulationResultFile()")
             return simresultvars
@@ -1162,7 +1162,7 @@ standard getXXX() API
 function which returns the LinearizationOptions
 """
 function getLinearizationOptions(omc, name=nothing)
-    if (name == nothing)
+    if (name === nothing)
         return omc.linearOptions
     elseif (isa(name, String))
         return get(omc.linearOptions, name, 0)
