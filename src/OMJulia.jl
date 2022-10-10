@@ -36,18 +36,19 @@ if (VERSION >= v"1.0")
     using Random
 end
 
-export sendExpression,ModelicaSystem,
-       ## getMethods
-       getParameters,getQuantities,showQuantities,getInputs,getOutputs,getSimulationOptions,getSolutions,getContinuous,getWorkDirectory,
-       ## setMethods
-       setInputs,setParameters,setSimulationOptions,
-       ## simulation
-       simulate,buildModel,
-       ## Linearizion
-       linearize,getLinearInputs,getLinearOutputs,getLinearStates,getLinearizationOptions,setLinearizationOptions,
-       ## sensitivity analysis
-       sensitivity
+export sendExpression, ModelicaSystem
+# getMethods
+export getParameters, getQuantities, showQuantities, getInputs, getOutputs, getSimulationOptions, getSolutions, getContinuous, getWorkDirectory
+# setMethods
+export setInputs, setParameters, setSimulationOptions
+# simulation
+export simulate, buildModel
+# Linearizion
+export linearize, getLinearInputs, getLinearOutputs, getLinearStates, getLinearizationOptions, setLinearizationOptions
+# sensitivity analysis
+export sensitivity
 
+include("error.jl")
 include("parser.jl")
 
 """
@@ -122,7 +123,7 @@ mutable struct OMCSession
                 ## create a omc process with OPENMODELICAHOME set to custom directory
                 @info("Setting environment variable OPENMODELICAHOME=\"$ompath\" for this session.")
                 withenv("OPENMODELICAHOME" => dirpath) do
-                    this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`))
+                    this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`, stdout="stdout.log", stderr="stderr.log"))
                 end
             else
                 omhome = ""
@@ -136,7 +137,7 @@ mutable struct OMCSession
                 # ompath=joinpath(omhome,"bin")
                 ## create a omc process with default OPENMODELICAHOME set in environment variable
                 withenv("OPENMODELICAHOME" => omhome) do
-                    this.omcprocess = open(pipeline(`$ompath $args2 $args3$args4`))
+                    this.omcprocess = open(pipeline(`$ompath $args2 $args3$args4`, stdout="stdout.log", stderr="stderr.log"))
                 end
             end
             portfile = join(["openmodelica.port.julia.",args4])
@@ -145,15 +146,15 @@ mutable struct OMCSession
                 # add omc to path if not exist
                 ENV["PATH"] = ENV["PATH"] * "/opt/openmodelica/bin"
                 if (omc !== nothing)
-                    this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`))
+                    this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`, stdout="stdout.log", stderr="stderr.log"))
                 else
-                    this.omcprocess = open(pipeline(`omc $args2 $args3$args4`))
+                    this.omcprocess = open(pipeline(`omc $args2 $args3$args4`, stdout="stdout.log", stderr="stderr.log"))
                 end
             else
                 if (omc !== nothing)
-                    this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`))
+                    this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`, stdout="stdout.log", stderr="stderr.log"))
                 else
-                    this.omcprocess = open(pipeline(`omc $args2 $args3$args4`))
+                    this.omcprocess = open(pipeline(`omc $args2 $args3$args4`, stdout="stdout.log", stderr="stderr.log"))
                 end
             end
             portfile = join(["openmodelica.",ENV["USER"],".port.julia.",args4])
@@ -166,8 +167,16 @@ mutable struct OMCSession
             sleep(0.02)
             tries += 1
         end
+        # Catch omc error
+        if process_exited(this.omcprocess) && this.omcprocess.exitcode != 0
+            throw(OMCError(this.omcprocess.cmd, "stdout.log", "stderr.log"))
+        else
+            @debug read(e.stdout_file, String)
+            @debug read(e.stderr_file, String)
+            rm.(["stdout.log", "stderr.log"], force=true)
+        end
         if tries >= 100
-            error("Timeout: ZMQ server port file \"$fullpath\" not created yet.")
+            throw(TimeoutError("ZMQ server port file \"$fullpath\" not created yet."))
         end
         filedata = read(fullpath, String)
         this.context = ZMQ.Context()
