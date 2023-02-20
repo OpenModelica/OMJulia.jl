@@ -1,22 +1,27 @@
 # OMJulia
+
 Julia scripting OpenModelica interface
 
-# Requirements:
-[Openmodelica](https://www.openmodelica.org/)<br>
-[Julia](https://julialang.org/)<br>
-[Dependencies](Project.toml)
+# Requirements
+
+  - [Openmodelica](https://www.openmodelica.org/)
+  - [Julia](https://julialang.org/)
+  - [Dependencies](Project.toml)
 
 # Installation
 ## For Windows
+
 Set the OpenModelica to "Path" environment variable for windows:
 ```
 "C:/OpenModelica1.14.0-dev-64bit/bin"
 ```
 ## For GNU/Linux and macOS
+
 Follow the instructions @ https://github.com/JuliaLang/julia
 
 # Getting OMJulia
-```
+
+```julia
 julia> import Pkg
 julia> Pkg.add(Pkg.PackageSpec(url="https://github.com/OpenModelica/OMJulia.jl"))
 ```
@@ -27,7 +32,8 @@ To see the list advanced API, the informations are provided in the UserGuide see
 (https://www.openmodelica.org/doc/OpenModelicaUsersGuide/latest/omjulia.html)
 
 # Usage
-```
+
+```julia
 julia> using OMJulia
 julia> using OMJulia: sendExpression
 julia> omc=OMJulia.OMCSession()
