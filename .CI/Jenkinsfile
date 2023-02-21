@@ -23,8 +23,8 @@ pipeline {
           sh 'hostname'
           sh '(cd /home/julia && tar xf /home/julia.tar)'
           sh 'test -d $HOME/.julia/compiled/v1.0/PEG/'
-          sh 'julia -e "using Pkg; Pkg.REPLMode.pkgstr(\\"add $PWD\\");"'
-          sh 'julia -e "using Pkg; Pkg.test(\\"OMJulia\\", coverage=true)"'
+          sh 'julia -e "using Pkg; Pkg.activate(\\".\\"); Pkg.build();"'
+          sh 'julia -e "using Pkg; Pkg.activate(\\".\\"); Pkg.test(\\"OMJulia\\", coverage=true);"'
         }
       }
     }
