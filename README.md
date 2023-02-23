@@ -1,44 +1,35 @@
 # OMJulia
 
-Julia scripting OpenModelica interface
+Julia scripting [OpenModelica](https://openmodelica.org/) interface.
 
-# Requirements
+## Requirements
 
-  - [Openmodelica](https://www.openmodelica.org/)
+  - [OpenModelica](https://www.openmodelica.org/)
   - [Julia](https://julialang.org/)
-  - [Dependencies](Project.toml)
 
-# Installation
-## For Windows
+## Installing OMJulia
 
-Set the OpenModelica to "Path" environment variable for windows:
-```
-"C:/OpenModelica1.14.0-dev-64bit/bin"
-```
-## For GNU/Linux and macOS
+Make sure [OpenModelica](https://openmodelica.org/) is installed.
 
-Follow the instructions @ https://github.com/JuliaLang/julia
-
-# Getting OMJulia
+Install OMJulia.jl with:
 
 ```julia
-julia> import Pkg
-julia> Pkg.add(Pkg.PackageSpec(url="https://github.com/OpenModelica/OMJulia.jl"))
+julia> import Pkg; Pkg.add("OMJulia")
 ```
 
-# Advanced API Scripting and UserGuide
+## Documentation
 
-To see the list advanced API, the informations are provided in the UserGuide see
-(https://www.openmodelica.org/doc/OpenModelicaUsersGuide/latest/omjulia.html)
+To see the list advanced API, the information are provided in the
+[OpenModelica User's Guide](https://www.openmodelica.org/doc/OpenModelicaUsersGuide/latest/omjulia.html).
 
-# Usage
+## Usage
 
 ```julia
 julia> using OMJulia
 julia> using OMJulia: sendExpression
 julia> omc=OMJulia.OMCSession()
 julia> sendExpression(omc, "getVersion()")
-"OMCompiler v1.14.0-dev.117+gddcc28391"
+"OpenModelica v1.21.0-dev-185-g9d983b8e35 (64-bit)"
 julia> sendExpression(omc, "model a end a;")
 1-element Array{Symbol,1}:
  :a
@@ -63,7 +54,11 @@ julia> OMJulia.sendExpression(omc, "quit()",parsed=false)
 "quit requested, shutting server down\n"
 ```
 
-To see the list of available commands in the OpenModelicaScripting API see (https://www.openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html
+## Bug Reports
+
+  - Submit OMJulia.jl bugs in this repositories [Issues](../../issues) section.
+  - Submit OpenModelica related bugs through the [OpenModelica GitHub issues](https://github.com/OpenModelica/OpenModelica/issues/new).
+  - [Pull requests](../../pulls) are welcome ❤️
 
 ## License
 
