@@ -116,12 +116,11 @@ mutable struct OMCSession
             args4 = randstring(10)
         end
         if (Base.Sys.iswindows())
-            # @assert omc === nothing "A Custom omc path for windows is not supported"
             if (omc !== nothing)
                 ompath = replace(omc, r"[/\\]+" => "/")
                 dirpath = dirname(dirname(omc))
                 ## create a omc process with OPENMODELICAHOME set to custom directory
-                @info("Setting environment variable OPENMODELICAHOME=\"$ompath\" for this session.")
+                @info("Setting environment variable OPENMODELICAHOME=\"$dirpath\" for this session.")
                 withenv("OPENMODELICAHOME" => dirpath) do
                     this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`, stdout="stdout.log", stderr="stderr.log"))
                 end
