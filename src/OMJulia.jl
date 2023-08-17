@@ -349,10 +349,22 @@ function xmlparse(omc)
                         subchild = child_elements(r)
                         for s in subchild
                             value = attribute(s, "start")
+                            min = attribute(s, "min")
+                            max = attribute(s, "max")
                             if (value !== nothing)
-                                scalar["value"] = value
+                                scalar["start"] = value
                             else
-                                scalar["value"] = "None"
+                                scalar["start"] = "None"
+                            end
+                            if (min !== nothing)
+                                scalar["min"] = min
+                            else
+                                scalar["min"] = "None"
+                            end
+                            if (max !== nothing)
+                                scalar["max"] = max
+                            else
+                                scalar["max"] = "None"
                             end
                         end
                         if (omc.linearFlag == false)
@@ -360,17 +372,17 @@ function xmlparse(omc)
                                 if haskey(omc.overridevariables, scalar["name"])
                                     omc.parameterlist[scalar["name"]] = omc.overridevariables[scalar["name"]]
                                 else
-                                    omc.parameterlist[scalar["name"]] = scalar["value"]
+                                    omc.parameterlist[scalar["name"]] = scalar["start"]
                                 end
                             end
                             if (scalar["variability"] == "continuous")
-                                omc.continuouslist[scalar["name"]] = scalar["value"]
+                                omc.continuouslist[scalar["name"]] = scalar["start"]
                             end
                             if (scalar["causality"] == "input")
-                                omc.inputlist[scalar["name"]] = scalar["value"]
+                                omc.inputlist[scalar["name"]] = scalar["start"]
                             end
                             if (scalar["causality"] == "output")
-                                omc.outputlist[scalar["name"]] = scalar["value"]
+                                omc.outputlist[scalar["name"]] = scalar["start"]
                             end
                         end
                         if (omc.linearFlag == true)
