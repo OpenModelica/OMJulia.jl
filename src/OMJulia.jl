@@ -801,16 +801,26 @@ function getSolutions(omc, name=nothing; resultfile=nothing)
         return
     end
     if (!isempty(resfile))
+        simresultvars = sendExpression(omc, "readSimulationResultVars(\"" * resfile * "\")")
+        sendExpression(omc, "closeSimulationResultFile()")
         if (name === nothing)
-            simresultvars = sendExpression(omc, "readSimulationResultVars(\"" * resfile * "\")")
-            sendExpression(omc, "closeSimulationResultFile()")
             return simresultvars
         elseif (isa(name, String))
+            if (!(name in simresultvars) && name != "time")
+                println(name, " does not exist\n")
+                return
+            end
             resultvar = join(["{",name,"}"])
             simres = sendExpression(omc, "readSimulationResult(\"" * resfile * "\"," * resultvar * ")")
             sendExpression(omc, "closeSimulationResultFile()")
             return simres
         elseif (isa(name, Array))
+            for var in name
+                if (!(var in simresultvars) && var != "time")
+                    println(var, " does not exist\n")
+                    return
+                end
+            end
             resultvar = join(["{",join(name, ","),"}"])
             # println(resultvar)
             simres = sendExpression(omc, "readSimulationResult(\"" * resfile * "\"," * resultvar * ")")
