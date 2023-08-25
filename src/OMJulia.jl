@@ -108,7 +108,7 @@ mutable struct OMCSession
         this.linearfile = ""
         this.linearFlag = false
         this.linearmodelname = ""
-        this.linearOptions = Dict("startTime" => "0.0", "stopTime" => "1.0", "numberOfIntervals" => "500", "stepSize" => "0.002", "tolerance" => "1e-6")
+        this.linearOptions = Dict("startTime" => "0.0", "stopTime" => "1.0", "stepSize" => "0.002", "tolerance" => "1e-6")
         args2 = "--interactive=zmq"
         args3 = "+z=julia."
         if (VERSION >= v"1.0")
@@ -666,7 +666,7 @@ function simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
                 overridevar = ""
             end
             if (omc.inputFlag == true)
-                createcsvdata(omc)
+                createcsvdata(omc, omc.simulateOptions["startTime"], omc.simulateOptions["stopTime"])
                 csvinput = join(["-csvInput=",omc.csvfile])
                 # run(pipeline(`$getexefile $overridevar $csvinput`,stdout="log.txt",stderr="error.txt"))
             else
@@ -987,7 +987,7 @@ end
 function which creates the csvinput when user specify new values
 for input variables, this function is used in context with setInputs()
 """
-function createcsvdata(omc)
+function createcsvdata(omc, startTime, stopTime)
     omc.csvfile = joinpath(omc.tempdir, join([omc.modelname,".csv"]))
     file = open(omc.csvfile, "w")
     write(file, join(["time",",",join(keys(omc.inputlist), ","),",","end","\n"]))
@@ -1005,13 +1005,13 @@ function createcsvdata(omc)
     end
 
     if (length(time) == 0)
-        push!(time, omc.simulateOptions["startTime"])
-        push!(time, omc.simulateOptions["stopTime"])
+        push!(time, startTime)
+        push!(time, stopTime)
     end
 
     previousvalue = Dict()
     for i in sort(time)
-        if (isa(i, SubString{String}))
+        if (isa(i, SubString{String}) || isa(i, String))
             write(file, i, ",")
         else
             write(file, join(i, ","), ",")
@@ -1104,7 +1104,7 @@ function linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
     end
 
     if (omc.inputFlag == true)
-        createcsvdata(omc)
+        createcsvdata(omc, omc.linearOptions["startTime"], omc.linearOptions["stopTime"])
         csvinput = join(["-csvInput=", omc.csvfile])
     else
         csvinput = "";
