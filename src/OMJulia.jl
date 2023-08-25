@@ -98,6 +98,7 @@ mutable struct OMCSession
         this.currentdir = pwd()
         this.filepath = ""
         this.modelname = ""
+        this.xmlfile = ""
         this.resultfile = ""
         this.simulationFlag = false
         this.inputFlag = false
@@ -214,6 +215,12 @@ function ModelicaSystem(omc, filename, modelname, library=nothing; commandLineOp
             return println(sendExpression(omc, "getErrorString()"))
         end
     end
+
+    ## set default command Line Options for linearization as
+    ## linearize() will use the simulation executable and runtime
+    ## flag -l to perform linearization
+    sendExpression(omc, "setCommandLineOptions(\"--linearizationDumpLanguage=julia\")")
+    sendExpression(omc, "setCommandLineOptions(\"--generateSymbolicLinearization\")")
 
     omc.filepath = filename
     omc.modelname = modelname
@@ -384,27 +391,29 @@ function xmlparse(omc)
                                 omc.outputlist[scalar["name"]] = scalar["start"]
                             end
                         end
-                        if (omc.linearFlag == true)
-                            if (scalar["alias"] == "alias")
-                                name = scalar["name"]
-                                if (name[2] == 'x')
-                                    # println(name[3:end-1])
-                                    push!(omc.linearstates, name[4:end - 1])
-                                end
-                                if (name[2] == 'u')
-                                    push!(omc.linearinputs, name[4:end - 1])
-                                end
-                                if (name[2] == 'y')
-                                    push!(omc.linearoutputs, name[4:end - 1])
-                                end
-                            end
-                        end
+                        push!(omc.quantitieslist, scalar)
 
-                        if (omc.linearFlag == true)
-                            push!(omc.linearquantitylist, scalar)
-                        else
-                            push!(omc.quantitieslist, scalar)
-                        end
+                        # if (omc.linearFlag == true)
+                        #     if (scalar["alias"] == "alias")
+                        #         name = scalar["name"]
+                        #         if (name[2] == 'x')
+                        #             # println(name[3:end-1])
+                        #             push!(omc.linearstates, name[4:end - 1])
+                        #         end
+                        #         if (name[2] == 'u')
+                        #             push!(omc.linearinputs, name[4:end - 1])
+                        #         end
+                        #         if (name[2] == 'y')
+                        #             push!(omc.linearoutputs, name[4:end - 1])
+                        #         end
+                        #     end
+                        # end
+
+                        # if (omc.linearFlag == true)
+                        #     push!(omc.linearquantitylist, scalar)
+                        # else
+                        #     push!(omc.quantitieslist, scalar)
+                        # end
                     end
                 end
             end
@@ -1059,132 +1068,114 @@ end
 function which returns the linearize model of modelica model,
 The function returns four matrices A,B,C,D
 """
-function linearize(omc)
-    sendExpression(omc, "setCommandLineOptions(\"+generateSymbolicLinearization\")")
-    overridelist = Any[]
-    for k in keys(omc.overridevariables)
-        val = join([k,"=",omc.overridevariables[k]])
-        push!(overridelist, val)
+function linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
+
+    if (isempty(omc.xmlfile))
+        return println("Linearization cannot be performed as the model is not build, use ModelicaSystem() to build the model first")
     end
-    overridelinear = Any[]
+
+    if (simflags === nothing)
+        simflags="";
+    end
+
+    overridelinearfile = replace(joinpath(omc.tempdir, join([omc.modelname,"_override_linear.txt"])), r"[/\\]+" => "/")
+    # println(overridelinearfile);
+
+    file = open(overridelinearfile, "w")
+    overridelist = false
+    for k in keys(omc.overridevariables)
+        val = join([k,"=",omc.overridevariables[k],"\n"])
+        write(file, val)
+        overridelist = true
+    end
+
     for t in keys(omc.linearOptions)
-        val = join([t,"=",omc.linearOptions[t]])
-        push!(overridelinear, val)
+        val = join([t,"=",omc.linearOptions[t], "\n"])
+        write(file, val)
+        overridelist = true
+    end
+
+    close(file)
+
+    if (overridelist == true)
+        overrideFlag = join(["-overrideFile=", overridelinearfile])
+    else
+        overrideFlag = "";
     end
 
     if (omc.inputFlag == true)
         createcsvdata(omc)
-        csvinput = join(["-csvInput=",omc.csvfile])
+        csvinput = join(["-csvInput=", omc.csvfile])
     else
         csvinput = "";
     end
-    if (length(overridelist) > 0)
-        overridevar = join(["-override=",join(overridelist, ",")])
+
+    if (isfile(omc.xmlfile))
+        if (Base.Sys.iswindows())
+            getexefile = replace(joinpath(omc.tempdir, join([omc.modelname,".exe"])), r"[/\\]+" => "/")
+        else
+            getexefile = replace(joinpath(omc.tempdir, omc.modelname), r"[/\\]+" => "/")
+        end
     else
-        overridevar = "";
+        return println("Linearization cannot be performed as : " + omc.xmlfile + " not found, please build the modelica again using ModelicaSystem()")
     end
 
-    linearexpr = join(["linearize(",omc.modelname,",",join(overridelinear, ","),",","simflags=","\"",csvinput," ",overridevar,"\"",")"])
-    # println(linearexpr)
-    sendExpression(omc, linearexpr)
-    omc.resultfile = replace(joinpath(omc.tempdir, join([omc.modelname,"_res.mat"])), r"[/\\]+" => "/")
+    if (lintime !== nothing)
+        linruntime = join(["-l=", lintime])
+    else
+        linruntime = join(["-l=", omc.linearOptions["stopTime"]])
+    end
+
+    finalLinearizationexe = filter!(e -> e ≠ "", [getexefile, linruntime, csvinput, simflags])
+    # println(finalLinearizationexe)
+
+    cd(omc.tempdir)
+    if (Base.Sys.iswindows())
+        installPath = sendExpression(omc, "getInstallationDirectoryPath()")
+        envPath = ENV["PATH"]
+        newPath = "$(envPath);$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp"
+        # println("Path: $newPath")
+        withenv("PATH" => newPath) do
+            if verbose
+                run(pipeline(`$finalLinearizationexe`))
+            else
+                run(pipeline(`$finalLinearizationexe`, stdout="log.txt", stderr="error.txt"))
+            end
+        end
+    else
+        if verbose
+            run(pipeline(`$finalLinearizationexe`))
+        else
+            run(pipeline(`$finalLinearizationexe`, stdout="log.txt", stderr="error.txt"))
+        end
+    end
+
     omc.linearmodelname = "linearized_model"
-    omc.linearfile = joinpath(omc.tempdir, join([omc.linearmodelname,".mo"]))
+    omc.linearfile = joinpath(omc.tempdir, join([omc.linearmodelname,".jl"]))
 
     # support older openmodelica versions before OpenModelica v1.16.2 where linearize() generates "linear_modelname.mo" file
     if(!isfile(omc.linearfile))
         omc.linearmodelname = join(["linear_", omc.modelname])
-        omc.linearfile = joinpath(omc.tempdir, join([omc.linearmodelname, ".mo"]))
+        omc.linearfile = joinpath(omc.tempdir, join([omc.linearmodelname, ".jl"]))
     end
 
     if (isfile(omc.linearfile))
-        loadmsg = sendExpression(omc, "loadFile(\"" * omc.linearfile * "\")")
-        if (!loadmsg)
-            return println(sendExpression(omc, "getErrorString()"))
-        end
-        cNames = sendExpression(omc, "getClassNames()")
-        buildmodelexpr = join(["buildModel(",cNames[1],")"])
-        # println(buildmodelexpr)
-        buildModelmsg = sendExpression(omc, buildmodelexpr)
-        # parsebuilexp=Base.Meta.parse(buildModelmsg)
-
-        if (!isempty(buildModelmsg[2]))
-            omc.linearFlag = true
-            omc.xmlfile = replace(joinpath(omc.tempdir, buildModelmsg[2]), r"[/\\]+" => "/")
-            omc.linearquantitylist = Any[]
-            omc.linearinputs = Any[]
-            omc.linearoutputs = Any[]
-            omc.linearstates = Any[]
-            xmlparse(omc)
-            linearMatrix = getLinearMatrix(omc)
-            return linearMatrix
-        else
-            return println("Building linearized Model failed: ", sendExpression(omc, "getErrorString()"))
-        end
+        omc.linearFlag = true
+        # this function is called from the generated Julia code linearized_model.jl,
+        # to improve the performance by directly reading the matrices A, B, C and D from the julia code and avoid building the linearized modelica model
+        include("linearized_model.jl")
+        ## to be evaluated at runtime, as Julia expects all functions should be known at the compilation time so efficient assembly code can be generated.
+        result = Base.invokelatest(linearized_model)
+        (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
+        omc.linearstates = stateVars
+        omc.linearinputs = inputVars
+        omc.linearoutputs = outputVars
+        return [A, B, C, D]
     else
         errormsg = sendExpression(omc, "getErrorString()")
         return println("Linearization failed: ","\"" , omc.linearfile,"\"" ," not found \n", errormsg)
     end
-end
-
-"""
-Helper function which constructs the Matices A,B,C,D for linearization
-"""
-function getLinearMatrix(omc)
-    matrix_A = OrderedDict()
-    matrix_B = OrderedDict()
-    matrix_C = OrderedDict()
-    matrix_D = OrderedDict()
-    for i in omc.linearquantitylist
-        name = i["name"]
-        value = i["value"]
-        if (i["variability"] == "parameter")
-            if (name[1] == 'A')
-                matrix_A[name] = value
-            end
-            if (name[1] == 'B')
-                matrix_B[name] = value
-            end
-            if (name[1] == 'C')
-                matrix_C[name] = value
-            end
-            if (name[1] == 'D')
-                matrix_D[name] = value
-            end
-        end
-    end
-    FullLinearMatrix = Array{Float64,2}[]
-    tmpMatrix_A = getLinearMatrixValues(matrix_A)
-    tmpMatrix_B = getLinearMatrixValues(matrix_B)
-    tmpMatrix_C = getLinearMatrixValues(matrix_C)
-    tmpMatrix_D = getLinearMatrixValues(matrix_D)
-    push!(FullLinearMatrix, tmpMatrix_A)
-    push!(FullLinearMatrix, tmpMatrix_B)
-    push!(FullLinearMatrix, tmpMatrix_C)
-    push!(FullLinearMatrix, tmpMatrix_D)
-    return FullLinearMatrix
-end
-
-"""
-Helper function which constructs the Matices A,B,C,D for linearization
-"""
-function getLinearMatrixValues(matrix_name)
-    if (!isempty(matrix_name))
-        v = [i for i in keys(matrix_name)]
-        dim = Base.Meta.parse(v[end])
-        rowcount = dim.args[2]
-        colcount = dim.args[3]
-        tmpMatrix = Matrix(undef, rowcount, colcount)
-        for j in keys(matrix_name)
-            val = Base.Meta.parse(j);
-            row = val.args[2];
-            col = val.args[3];
-            tmpMatrix[row,col] = Base.parse(Float64, matrix_name[j])
-        end
-        return tmpMatrix
-    else
-        return Matrix(undef, 0, 0)
-    end
+    cd(omc.currentdir)
 end
 
 """
