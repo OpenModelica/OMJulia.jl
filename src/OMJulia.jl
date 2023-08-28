@@ -392,28 +392,6 @@ function xmlparse(omc)
                             end
                         end
                         push!(omc.quantitieslist, scalar)
-
-                        # if (omc.linearFlag == true)
-                        #     if (scalar["alias"] == "alias")
-                        #         name = scalar["name"]
-                        #         if (name[2] == 'x')
-                        #             # println(name[3:end-1])
-                        #             push!(omc.linearstates, name[4:end - 1])
-                        #         end
-                        #         if (name[2] == 'u')
-                        #             push!(omc.linearinputs, name[4:end - 1])
-                        #         end
-                        #         if (name[2] == 'y')
-                        #             push!(omc.linearoutputs, name[4:end - 1])
-                        #         end
-                        #     end
-                        # end
-
-                        # if (omc.linearFlag == true)
-                        #     push!(omc.linearquantitylist, scalar)
-                        # else
-                        #     push!(omc.quantitieslist, scalar)
-                        # end
                     end
                 end
             end
@@ -655,13 +633,16 @@ function simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
             ## change to tempdir
             cd(omc.tempdir)
             if (!isempty(omc.overridevariables) | !isempty(omc.simoptoverride))
-                overridelist = Any[]
                 tmpdict = merge(omc.overridevariables, omc.simoptoverride)
+                overridefile = replace(joinpath(omc.tempdir, join([omc.modelname,"_override.txt"])), r"[/\\]+" => "/")
+                file = open(overridefile, "w")
                 for k in keys(tmpdict)
-                    val = join([k,"=",tmpdict[k]])
-                    push!(overridelist, val)
+                    val = join([k,"=",tmpdict[k],"\n"])
+                    println(val)
+                    write(file, val)
                 end
-                overridevar = join(["-override=",join(overridelist, ",")])
+                close(file)
+                overridevar = join(["-overrideFile=", overridefile])
             else
                 overridevar = ""
             end
