@@ -26,30 +26,38 @@ EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
 CONDITIONS OF OSMC-PL.
 =#
 
-module OMJulia
-    global IS_FILE_OMJULIA = false
+"""
+    sendExpression(omc, expr; parsed=true)
 
-    using DataFrames
-    using DataStructures
-    using LightXML
-    using Random
-    using ZMQ
+Send API call to OpenModelica ZMQ server.
+See [OpenModelica User's Guide Scripting API](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html)
+for a complete list of all functions.
 
-    export sendExpression, ModelicaSystem
-    # getMethods
-    export getParameters, getQuantities, showQuantities, getInputs, getOutputs, getSimulationOptions, getSolutions, getContinuous, getWorkDirectory
-    # setMethods
-    export setInputs, setParameters, setSimulationOptions
-    # simulation
-    export simulate, buildModel
-    # Linearizion
-    export linearize, getLinearInputs, getLinearOutputs, getLinearStates, getLinearizationOptions, setLinearizationOptions
-    # sensitivity analysis
-    export sensitivity
-
-    include("error.jl")
-    include("parser.jl")
-    include("omcSession.jl")
-    include("sendExpression.jl")
-    include("modelicaSystem.jl")
+!!! note
+    Special characters in argument `expr` need to be escaped.
+    E.g. `"` becomes `\"`.
+    For example scripting API call
+    
+    ```modelica
+    loadFile("/path/to/M.mo")
+    ```
+    
+    will translate to
+    
+    ```julia
+    sendExpression(omc, "loadFile(\"/path/to/M.mo\")")
+    ```
+"""
+function sendExpression(omc, expr; parsed=true)
+  if (process_running(omc.omcprocess))
+      ZMQ.send(omc.socket, expr)
+      message = ZMQ.recv(omc.socket)
+      if parsed
+          return Parser.parseOM(unsafe_string(message))
+      else
+          return unsafe_string(message)
+      end
+  else
+      return "Process Exited, No connection with OMC. Create a new instance of OMCSession"
+  end
 end
