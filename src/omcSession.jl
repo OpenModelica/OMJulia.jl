@@ -121,7 +121,7 @@ mutable struct OMCSession
                     this.omcprocess = open(pipeline(`$ompath $args1 $args2`, stdout="stdout.log", stderr="stderr.log"))
                 end
             end
-            portfile = join(["openmodelica.port.julia.",args3])
+            portfile = join(["openmodelica.port.julia.", randPortSuffix])
         else
             if (Base.Sys.isapple())
                 # add omc to path if not exist
