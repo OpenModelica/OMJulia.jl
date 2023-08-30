@@ -34,8 +34,8 @@ See [OpenModelica User's Guide Scripting API](https://openmodelica.org/doc/OpenM
 for a complete list of all functions.
 
 !!! note
-    Special characters in argument `expr` need to be escaped.
-    E.g. `"` becomes `\"`.
+    Some characters in argument `expr` need to be escaped.
+    E.g. `"` becomes `\\"`.
     For example scripting API call
     
     ```modelica
@@ -45,8 +45,31 @@ for a complete list of all functions.
     will translate to
     
     ```julia
-    sendExpression(omc, "loadFile(\"/path/to/M.mo\")")
+    sendExpression(omc, "loadFile(\\"/path/to/M.mo\\")")
     ```
+
+!!! warn
+    On Windows path separation symbol `\\` needs to be escaped and doubled  `\\\\` to
+    prevent warnings.
+
+    ```modelica
+    loadFile("C:\\\\path\\\\to\\\\M.mo")
+    ```
+
+    translate to
+
+    ```julia
+    sendExpression(omc, "loadFile(\\"C:\\\\\\\\path\\\\\\\\to\\\\\\\\M.mo\\")")  # Windows
+    sendExpression(omc, "loadFile(\\"/c/path/to/M.mo\\")")           # Windows
+    ```
+
+## Example
+
+```julia
+using OMJulia
+omc = OMJulia.OMCSession()
+OMJulia.sendExpression(omc, "getVersion()")
+```
 """
 function sendExpression(omc, expr; parsed=true)
   if (process_running(omc.omcprocess))

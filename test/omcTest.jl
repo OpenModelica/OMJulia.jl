@@ -26,10 +26,37 @@ EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
 CONDITIONS OF OSMC-PL.
 =#
 
-using SafeTestsets
 using Test
+import OMJulia
 
-@testset "OMJulia" begin
-  @safetestset "Parsing" begin include("parserTest.jl") end
-  @safetestset "OMCSession" begin include("omcTest.jl") end
+@testset "OpenModelica" begin
+  @testset "OMCSession" begin
+    olddir = pwd()
+    try
+      workdir = abspath(joinpath(@__DIR__, "test-session"))
+      rm(workdir, recursive=true, force=true)
+      mkpath(workdir)
+      cd(workdir)
+
+      omc = OMJulia.OMCSession()
+      version = OMJulia.sendExpression(omc, "getVersion()")
+      @test startswith(version, "v1.")
+      a = OMJulia.sendExpression(omc, "model a end a;")
+      @test a == [:a]
+
+      classNames = OMJulia.sendExpression(omc, "getClassNames()")
+      @test classNames == [:a]
+      @test true == OMJulia.sendExpression(omc, "loadModel(Modelica)")
+      res = OMJulia.sendExpression(omc, "simulate(Modelica.Electrical.Analog.Examples.CauerLowPassAnalog)")
+      @test isfile(res["resultFile"])
+      @test occursin("The simulation finished successfully.", res["messages"])
+
+      @test 3 == OMJulia.sendExpression(omc, "1+2")
+
+      ret = OMJulia.sendExpression(omc, "quit()", parsed=false)
+      @test ret == "quit requested, shutting server down\n"
+    finally
+      cd(olddir)
+    end
+  end
 end
