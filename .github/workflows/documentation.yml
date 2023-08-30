@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - new-doc # TODO: Remove before merging into master!
     tags: '*'
   pull_request:
 
