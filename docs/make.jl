@@ -19,5 +19,5 @@ makedocs(
 @info "Deploy the docs"
 deploydocs(
   repo = "github.com/OpenModelica/OMJulia.jl.git",
-  devbranch = "master"
+  devbranch = "new-doc"   # TODO: Change to master before merging into master
 )
