@@ -4,7 +4,7 @@ ENV["JULIA_DEBUG"]="Documenter"
 
 @info "Make the docs"
 makedocs(
-  sitename = "NonLinearSystemNeuralNetworkFMU.jl",
+  sitename = "OMJulia.jl",
   format = Documenter.HTML(edit_link = "master"),
   workdir = joinpath(@__DIR__,".."),
   pages = [
