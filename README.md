@@ -79,7 +79,7 @@ EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
 CONDITIONS OF OSMC-PL.
 
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
-[docs-dev-url]: https://anheuermann.github.io/NonLinearSystemNeuralNetworkFMU.jl/dev/
+[docs-dev-url]: https://OpenModelica.github.io/OMJulia.jl/dev/
 
 [GHA-test-img]: https://github.com/OpenModelica/OMJulia.jl/actions/workflows/Test.yml/badge.svg?branch=master
 [GHA-test-url]: https://github.com/OpenModelica/OMJulia.jl/actions/workflows/Test.yml
