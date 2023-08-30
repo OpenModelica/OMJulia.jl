@@ -1,6 +1,8 @@
-# OMJulia
+# OMJulia.jl
 
-Julia scripting [OpenModelica](https://openmodelica.org/) interface.
+*Julia scripting [OpenModelica](https://openmodelica.org/) interface.*
+
+[![][docs-dev-img]][docs-dev-url] [![][GHA-test-img]][GHA-test-url]
 
 ## Requirements
 
@@ -16,11 +18,6 @@ Install OMJulia.jl with:
 ```julia
 julia> import Pkg; Pkg.add("OMJulia")
 ```
-
-## Documentation
-
-To see the list advanced API, the information are provided in the
-[OpenModelica User's Guide](https://www.openmodelica.org/doc/OpenModelicaUsersGuide/latest/omjulia.html).
 
 ## Usage
 
@@ -80,3 +77,9 @@ This program is distributed WITHOUT ANY WARRANTY; without even the implied
 warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, EXCEPT AS
 EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
 CONDITIONS OF OSMC-PL.
+
+[docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
+[docs-dev-url]: https://anheuermann.github.io/NonLinearSystemNeuralNetworkFMU.jl/dev/
+
+[GHA-test-img]: https://github.com/OpenModelica/OMJulia.jl/actions/workflows/Test.yml/badge.svg?branch=master
+[GHA-test-url]: https://github.com/OpenModelica/OMJulia.jl/actions/workflows/Test.yml
