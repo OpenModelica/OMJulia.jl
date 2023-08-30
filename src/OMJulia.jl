@@ -1107,7 +1107,7 @@ function linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
         linruntime = join(["-l=", omc.linearOptions["stopTime"]])
     end
 
-    finalLinearizationexe = filter!(e -> e ≠ "", [getexefile, linruntime, csvinput, simflags])
+    finalLinearizationexe = filter!(e -> e ≠ "", [getexefile, linruntime, overrideFlag, csvinput, simflags])
     # println(finalLinearizationexe)
 
     cd(omc.tempdir)
