@@ -31,8 +31,12 @@ omc process error
 """
 struct OMCError <: Exception
     cmd::Cmd
-    stdout_file::String
-    stderr_file::String
+    stdout_file::Union{String, Missing}
+    stderr_file::Union{String, Missing}
+
+    function OMCError(cmd, stdout_file=missing, stderr_file=missing)
+        new(cmd, stdout_file, stderr_file)
+    end
 end
 """
 Show error from log files
@@ -40,9 +44,14 @@ Show error from log files
 function Base.showerror(io::IO, e::OMCError)
     println(io, "OMCError ")
     println(io, "Command $(e.cmd) failed")
-    println(io,  read(e.stdout_file, String))
-    print(io, read(e.stderr_file, String))
-    rm.(["stdout.log", "stderr.log"], force=true)
+    if !ismissing(e.stdout_file)
+        println(io,  read(e.stdout_file, String))
+        rm(e.stdout_file, force=true)
+    end
+    if !ismissing(e.stdout_file)
+        print(io, read(e.stderr_file, String))
+        rm(e.stderr_file, force=true)
+    end
 end
 
 """

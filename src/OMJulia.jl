@@ -123,7 +123,7 @@ mutable struct OMCSession
                 ## create a omc process with OPENMODELICAHOME set to custom directory
                 @info("Setting environment variable OPENMODELICAHOME=\"$dirpath\" for this session.")
                 withenv("OPENMODELICAHOME" => dirpath) do
-                    this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`, stdout="stdout.log", stderr="stderr.log"))
+                    this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`))
                 end
             else
                 omhome = ""
@@ -137,7 +137,7 @@ mutable struct OMCSession
                 # ompath=joinpath(omhome,"bin")
                 ## create a omc process with default OPENMODELICAHOME set in environment variable
                 withenv("OPENMODELICAHOME" => omhome) do
-                    this.omcprocess = open(pipeline(`$ompath $args2 $args3$args4`, stdout="stdout.log", stderr="stderr.log"))
+                    this.omcprocess = open(pipeline(`$ompath $args2 $args3$args4`))
                 end
             end
             portfile = join(["openmodelica.port.julia.",args4])
@@ -169,7 +169,11 @@ mutable struct OMCSession
         end
         # Catch omc error
         if process_exited(this.omcprocess) && this.omcprocess.exitcode != 0
-            throw(OMCError(this.omcprocess.cmd, "stdout.log", "stderr.log"))
+            if Sys.iswindows()
+                throw(OMCError(this.omcprocess.cmd))
+            else
+                throw(OMCError(this.omcprocess.cmd, "stdout.log", "stderr.log"))
+            end
         else
             @debug read(e.stdout_file, String)
             @debug read(e.stderr_file, String)
