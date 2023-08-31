@@ -32,9 +32,7 @@ using ZMQ
 using DataStructures
 using LightXML
 using DataFrames
-if (VERSION >= v"1.0")
-    using Random
-end
+using Random
 
 export sendExpression, ModelicaSystem
 # getMethods
@@ -109,21 +107,18 @@ mutable struct OMCSession
         this.linearFlag = false
         this.linearmodelname = ""
         this.linearOptions = Dict("startTime" => "0.0", "stopTime" => "1.0", "stepSize" => "0.002", "tolerance" => "1e-6")
-        args2 = "--interactive=zmq"
-        args3 = "+z=julia."
-        if (VERSION >= v"1.0")
-            args4 = Random.randstring(10)
-        else
-            args4 = randstring(10)
-        end
-        if (Base.Sys.iswindows())
+        args1 = "--interactive=zmq"
+        randPortSuffix = Random.randstring(10)
+        args2 = "+z=julia.$(randPortSuffix)"
+
+        if (Sys.iswindows())
             if (omc !== nothing)
                 ompath = replace(omc, r"[/\\]+" => "/")
                 dirpath = dirname(dirname(omc))
                 ## create a omc process with OPENMODELICAHOME set to custom directory
                 @info("Setting environment variable OPENMODELICAHOME=\"$dirpath\" for this session.")
                 withenv("OPENMODELICAHOME" => dirpath) do
-                    this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`))
+                    this.omcprocess = open(pipeline(`$omc $args1 $args2`))
                 end
             else
                 omhome = ""
@@ -137,27 +132,27 @@ mutable struct OMCSession
                 # ompath=joinpath(omhome,"bin")
                 ## create a omc process with default OPENMODELICAHOME set in environment variable
                 withenv("OPENMODELICAHOME" => omhome) do
-                    this.omcprocess = open(pipeline(`$ompath $args2 $args3$args4`))
+                    this.omcprocess = open(pipeline(`$ompath $args1 $args2`))
                 end
             end
-            portfile = join(["openmodelica.port.julia.",args4])
+            portfile = join(["openmodelica.port.julia.",randPortSuffix])
         else
-            if (Base.Sys.isapple())
+            if (Sys.isapple())
                 # add omc to path if not exist
                 ENV["PATH"] = ENV["PATH"] * "/opt/openmodelica/bin"
                 if (omc !== nothing)
-                    this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`, stdout="stdout.log", stderr="stderr.log"))
+                    this.omcprocess = open(pipeline(`$omc $args1 $args2`, stdout="stdout.log", stderr="stderr.log"))
                 else
-                    this.omcprocess = open(pipeline(`omc $args2 $args3$args4`, stdout="stdout.log", stderr="stderr.log"))
+                    this.omcprocess = open(pipeline(`omc $args1 $args2`, stdout="stdout.log", stderr="stderr.log"))
                 end
             else
                 if (omc !== nothing)
-                    this.omcprocess = open(pipeline(`$omc $args2 $args3$args4`, stdout="stdout.log", stderr="stderr.log"))
+                    this.omcprocess = open(pipeline(`$omc $args1 $args2`, stdout="stdout.log", stderr="stderr.log"))
                 else
-                    this.omcprocess = open(pipeline(`omc $args2 $args3$args4`, stdout="stdout.log", stderr="stderr.log"))
+                    this.omcprocess = open(pipeline(`omc $args1 $args2`, stdout="stdout.log", stderr="stderr.log"))
                 end
             end
-            portfile = join(["openmodelica.",ENV["USER"],".port.julia.",args4])
+            portfile = join(["openmodelica.", ENV["USER"], ".port.julia.", randPortSuffix])
         end
         fullpath = joinpath(tempdir(), portfile)
         @info("Path to zmq file=\"$fullpath\"")
@@ -317,7 +312,7 @@ function buildModel(omc; variableFilter=nothing)
     # println(buildmodelexpr)
 
     buildModelmsg = sendExpression(omc, buildmodelexpr)
-    # parsebuilexp=Base.Meta.parse(buildModelmsg)
+    # parsebuilexp=Meta.parse(buildModelmsg)
     if (!isempty(buildModelmsg[2]))
         omc.xmlfile = replace(joinpath(omc.tempdir, buildModelmsg[2]), r"[/\\]+" => "/")
         xmlparse(omc)
@@ -628,7 +623,7 @@ function simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
     end
 
     if (isfile(omc.xmlfile))
-        if (Base.Sys.iswindows())
+        if (Sys.iswindows())
             getexefile = replace(joinpath(omc.tempdir, join([omc.modelname,".exe"])), r"[/\\]+" => "/")
         else
             getexefile = replace(joinpath(omc.tempdir, omc.modelname), r"[/\\]+" => "/")
@@ -661,7 +656,7 @@ function simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
             # remove empty args in cmd objects
             cmd = filter!(e -> e ≠ "", [getexefile,overridevar,csvinput,r,simflags])
             # println(cmd)
-            if (Base.Sys.iswindows())
+            if (Sys.iswindows())
                 installPath = sendExpression(omc, "getInstallationDirectoryPath()")
                 envPath = ENV["PATH"]
                 newPath = "$(envPath);$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp"
@@ -742,7 +737,7 @@ function sensitivity(omc, Vp, Vv, Ve=[1e-2])
          Ve = Ve[1:nVp] # truncates Ve to same length as Vp
     end
     # Nominal parameters p0
-    par0 = [Base.parse(Float64, pp) for pp in getParameters(omc, Vp)]
+    par0 = [parse(Float64, pp) for pp in getParameters(omc, Vp)]
     # eXcitation parameters parX
     parX = [par0[i] * (1 + Ve[i]) for i in 1:nVp]
     # Combine parameter names and parameter values into vector of strings
@@ -921,7 +916,7 @@ function setInputs(omc, name)
         name = strip_space(name)
         value = split(name, "=")
         if (haskey(omc.inputlist, value[1]))
-            newval = Base.Meta.parse(value[2])
+            newval = Meta.parse(value[2])
             if (isa(newval, Expr))
                 omc.inputlist[value[1]] = [v.args for v in newval.args]
             else
@@ -936,7 +931,7 @@ function setInputs(omc, name)
         for var in name
             value = split(var, "=")
             if (haskey(omc.inputlist, value[1]))
-                newval = Base.Meta.parse(value[2])
+                newval = Meta.parse(value[2])
                 if (isa(newval, Expr))
                     omc.inputlist[value[1]] = [v.args for v in newval.args]
                 else
@@ -1096,7 +1091,7 @@ function linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
     end
 
     if (isfile(omc.xmlfile))
-        if (Base.Sys.iswindows())
+        if (Sys.iswindows())
             getexefile = replace(joinpath(omc.tempdir, join([omc.modelname,".exe"])), r"[/\\]+" => "/")
         else
             getexefile = replace(joinpath(omc.tempdir, omc.modelname), r"[/\\]+" => "/")
@@ -1115,7 +1110,7 @@ function linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
     # println(finalLinearizationexe)
 
     cd(omc.tempdir)
-    if (Base.Sys.iswindows())
+    if (Sys.iswindows())
         installPath = sendExpression(omc, "getInstallationDirectoryPath()")
         envPath = ENV["PATH"]
         newPath = "$(envPath);$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp"
@@ -1150,7 +1145,7 @@ function linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
         # to improve the performance by directly reading the matrices A, B, C and D from the julia code and avoid building the linearized modelica model
         include("linearized_model.jl")
         ## to be evaluated at runtime, as Julia expects all functions should be known at the compilation time so efficient assembly code can be generated.
-        result = Base.invokelatest(linearized_model)
+        result = invokelatest(linearized_model)
         (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
         omc.linearstates = stateVars
         omc.linearinputs = inputVars
