@@ -41,7 +41,7 @@ import OMJulia
 
             omc = OMJulia.OMCSession()
             version = OMJulia.sendExpression(omc, "getVersion()")
-            @test startswith(version, "v1.")
+            @test (startswith(version, "v1.") || startswith(version, "OpenModelica v1."))
             a = OMJulia.sendExpression(omc, "model a end a;")
             @test a == [:a]
 
