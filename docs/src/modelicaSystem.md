@@ -261,6 +261,6 @@ sensitivity
 
 ### Examples
 
-```@repl BouncingBall-example
+```@repl ModSeborgCSTRorg-example
 (Sn, Sa) = sensitivity(mod, ["UA","EdR"], ["T","cA"], [1e-2,1e-4])
 ```
