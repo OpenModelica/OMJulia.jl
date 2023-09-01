@@ -1037,7 +1037,7 @@ function linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
         omc.linearFlag = true
         # this function is called from the generated Julia code linearized_model.jl,
         # to improve the performance by directly reading the matrices A, B, C and D from the julia code and avoid building the linearized modelica model
-        include("linearized_model.jl")
+        include(omc.linearfile)
         ## to be evaluated at runtime, as Julia expects all functions should be known at the compilation time so efficient assembly code can be generated.
         result = Base.invokelatest(linearized_model)
         (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
