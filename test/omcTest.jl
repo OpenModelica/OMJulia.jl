@@ -62,9 +62,6 @@ import OMJulia
     end
 
     @testset "Multiple sessions" begin
-        omc1 = OMJulia.OMCSession()
-        omc2 = OMJulia.OMCSession()
-
         workdir1 = abspath(joinpath(@__DIR__, "test-omc1"))
         workdir2 = abspath(joinpath(@__DIR__, "test-omc2"))
         rm(workdir1, recursive=true, force=true)
@@ -76,6 +73,10 @@ import OMJulia
             workdir1 = replace(workdir1, "\\" => "\\\\")
             workdir2 = replace(workdir2, "\\" => "\\\\")
         end
+
+        @info "Begin multiple sessions"
+        omc1 = OMJulia.OMCSession()
+        omc2 = OMJulia.OMCSession()
 
         OMJulia.sendExpression(omc1, "cd(\"$workdir1\")")
         @test true == OMJulia.sendExpression(omc1, "loadModel(Modelica)")
@@ -89,5 +90,6 @@ import OMJulia
 
         OMJulia.sendExpression(omc1, "quit()", parsed=false)
         OMJulia.sendExpression(omc2, "quit()", parsed=false)
+        @info "Fnished multiple sessions"
     end
 end
