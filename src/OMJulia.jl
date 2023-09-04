@@ -178,16 +178,18 @@ mutable struct OMCSession
 end
 
 function sendExpression(omc, expr; parsed=true)
-    if (process_running(omc.omcprocess))
-        ZMQ.send(omc.socket, expr)
-        message = ZMQ.recv(omc.socket)
-        if parsed
-            return Parser.parseOM(unsafe_string(message))
-        else
-            return unsafe_string(message)
-        end
+    if (!process_running(omc.omcprocess))
+        return error("Process Exited, No connection with OMC. Create a new instance of OMCSession")
+    end
+
+    @info "sending expression: $(expr)"
+    ZMQ.Sockets.send(omc.socket, expr)
+    @info "Receiving message from ZMQ socket"
+    message = ZMQ.Sockets.recv(omc.socket)
+    if parsed
+        return Parser.parseOM(unsafe_string(message))
     else
-        return "Process Exited, No connection with OMC. Create a new instance of OMCSession"
+        return unsafe_string(message)
     end
 end
 
