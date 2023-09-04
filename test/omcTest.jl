@@ -30,33 +30,66 @@ using Test
 import OMJulia
 
 @testset "OpenModelica" begin
-  @testset "OMCSession" begin
-    olddir = pwd()
-    try
-      workdir = abspath(joinpath(@__DIR__, "test-session"))
-      rm(workdir, recursive=true, force=true)
-      mkpath(workdir)
-      cd(workdir)
+    @testset "OMCSession" begin
+        workdir = abspath(joinpath(@__DIR__, "test-session"))
+        rm(workdir, recursive=true, force=true)
+        mkpath(workdir)
 
-      omc = OMJulia.OMCSession()
-      version = OMJulia.sendExpression(omc, "getVersion()")
-      @test startswith(version, "v1.")
-      a = OMJulia.sendExpression(omc, "model a end a;")
-      @test a == [:a]
+        oldwd = pwd()
+        try
+            cd(workdir)
 
-      classNames = OMJulia.sendExpression(omc, "getClassNames()")
-      @test classNames == [:a]
-      @test true == OMJulia.sendExpression(omc, "loadModel(Modelica)")
-      res = OMJulia.sendExpression(omc, "simulate(Modelica.Electrical.Analog.Examples.CauerLowPassAnalog)")
-      @test isfile(res["resultFile"])
-      @test occursin("The simulation finished successfully.", res["messages"])
+            omc = OMJulia.OMCSession()
+            version = OMJulia.sendExpression(omc, "getVersion()")
+            @test (startswith(version, "v1.") || startswith(version, "OpenModelica v1.") || startswith(version, "OpenModelica 1."))
+            a = OMJulia.sendExpression(omc, "model a end a;")
+            @test a == [:a]
 
-      @test 3 == OMJulia.sendExpression(omc, "1+2")
+            classNames = OMJulia.sendExpression(omc, "getClassNames()")
+            @test classNames == [:a]
+            @test true == OMJulia.sendExpression(omc, "loadModel(Modelica)")
+            res = OMJulia.sendExpression(omc, "simulate(Modelica.Electrical.Analog.Examples.CauerLowPassAnalog)")
+            @test isfile(res["resultFile"])
+            @test occursin("The simulation finished successfully.", res["messages"])
 
-      ret = OMJulia.sendExpression(omc, "quit()", parsed=false)
-      @test ret == "quit requested, shutting server down\n"
-    finally
-      cd(olddir)
+            @test 3 == OMJulia.sendExpression(omc, "1+2")
+
+            ret = OMJulia.sendExpression(omc, "quit()", parsed=false)
+            @test ret == "quit requested, shutting server down\n"
+        finally
+            cd(oldwd)
+        end
     end
-  end
+
+    @testset "Multiple sessions" begin
+        workdir1 = abspath(joinpath(@__DIR__, "test-omc1"))
+        workdir2 = abspath(joinpath(@__DIR__, "test-omc2"))
+        rm(workdir1, recursive=true, force=true)
+        rm(workdir2, recursive=true, force=true)
+        mkpath(workdir1)
+        mkpath(workdir2)
+
+        if Sys.iswindows()
+            workdir1 = replace(workdir1, "\\" => "\\\\")
+            workdir2 = replace(workdir2, "\\" => "\\\\")
+        end
+
+        @info "Begin multiple sessions"
+        omc1 = OMJulia.OMCSession()
+        omc2 = OMJulia.OMCSession()
+
+        OMJulia.sendExpression(omc1, "cd(\"$workdir1\")")
+        @test true == OMJulia.sendExpression(omc1, "loadModel(Modelica)")
+        res = OMJulia.sendExpression(omc1, "simulate(Modelica.Blocks.Examples.PID_Controller)")
+        @test isfile(joinpath(@__DIR__, "test-omc1", "Modelica.Blocks.Examples.PID_Controller_res.mat"))
+
+        OMJulia.sendExpression(omc2, "cd(\"$workdir2\")")
+        @test true == OMJulia.sendExpression(omc2, "loadModel(Modelica)")
+        res = OMJulia.sendExpression(omc2, "simulate(Modelica.Blocks.Examples.PID_Controller)")
+        @test isfile(joinpath(@__DIR__, "test-omc2", "Modelica.Blocks.Examples.PID_Controller_res.mat"))
+
+        OMJulia.sendExpression(omc1, "quit()", parsed=false)
+        OMJulia.sendExpression(omc2, "quit()", parsed=false)
+        @info "Fnished multiple sessions"
+    end
 end

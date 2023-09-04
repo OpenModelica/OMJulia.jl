@@ -30,6 +30,6 @@ using SafeTestsets
 using Test
 
 @testset "OMJulia" begin
-  @safetestset "Parsing" begin include("parserTest.jl") end
-  @safetestset "OMCSession" begin include("omcTest.jl") end
+    @safetestset "Parsing" begin include("parserTest.jl") end
+    @safetestset "OMCSession" begin include("omcTest.jl") end
 end
