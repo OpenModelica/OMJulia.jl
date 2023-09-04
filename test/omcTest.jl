@@ -76,19 +76,30 @@ import OMJulia
 
         @info "Begin multiple sessions"
         omc1 = OMJulia.OMCSession()
+        @info "AHeu1"
         omc2 = OMJulia.OMCSession()
+        @info "AHeu2"
 
         OMJulia.sendExpression(omc1, "cd(\"$workdir1\")")
+        @info "AHeu3"
         @test true == OMJulia.sendExpression(omc1, "loadModel(Modelica)")
+        @info "AHeu4"
         res = OMJulia.sendExpression(omc1, "simulate(Modelica.Blocks.Examples.PID_Controller)")
+        @info "AHeu5"
         @test isfile(joinpath(@__DIR__, "test-omc1", "Modelica.Blocks.Examples.PID_Controller_res.mat"))
+        @info "AHeu6"
 
         OMJulia.sendExpression(omc2, "cd(\"$workdir2\")")
+        @info "AHeu7"
         @test true == OMJulia.sendExpression(omc2, "loadModel(Modelica)")
+        @info "AHeu8"
         res = OMJulia.sendExpression(omc2, "simulate(Modelica.Blocks.Examples.PID_Controller)")
+        @info "AHeu9"
         @test isfile(joinpath(@__DIR__, "test-omc2", "Modelica.Blocks.Examples.PID_Controller_res.mat"))
+        @info "AHeu10"
 
         OMJulia.sendExpression(omc1, "quit()", parsed=false)
+        @info "AHeu11"
         OMJulia.sendExpression(omc2, "quit()", parsed=false)
         @info "Fnished multiple sessions"
     end

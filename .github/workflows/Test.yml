@@ -43,3 +43,5 @@ jobs:
 
       - name: "Test OMJulia"
         uses: julia-actions/julia-runtest@v1
+        with:
+          coverage: false
