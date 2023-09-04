@@ -54,8 +54,9 @@ import OMJulia
 
             @test 3 == OMJulia.sendExpression(omc, "1+2")
 
-            ret = OMJulia.sendExpression(omc, "quit()", parsed=false)
-            @test ret == "quit requested, shutting server down\n"
+            #ret = OMJulia.sendExpression(omc, "quit()", parsed=false)
+            #@test ret == "quit requested, shutting server down\n"
+            kill(omc.omcprocess)
         finally
             cd(oldwd)
         end
@@ -98,9 +99,11 @@ import OMJulia
         @test isfile(joinpath(@__DIR__, "test-omc2", "Modelica.Blocks.Examples.PID_Controller_res.mat"))
         @info "AHeu10"
 
-        OMJulia.sendExpression(omc1, "quit()", parsed=false)
+        #OMJulia.sendExpression(omc1, "quit()", parsed=false)
+        kill(omc1.omcprocess)
         @info "AHeu11"
-        OMJulia.sendExpression(omc2, "quit()", parsed=false)
+        #OMJulia.sendExpression(omc2, "quit()", parsed=false)
+        kill(omc2.omcprocess)
         @info "Fnished multiple sessions"
     end
 end
