@@ -86,14 +86,17 @@ getWorkDirectory(mod)
 
 ## Build Model
 
+```@docs
+buildModel
+```
 In case the Modelica model needs to be updated or additional simulation flags needs to be
 set using [`sendExpression`](@ref) The [`buildModel`](@ref) API can be used after
 [`ModelicaSystem`](@ref).
 
-```@docs
-buildModel
 ```
-
+buildModel(omc)
+buildModel(omc, variableFilter="a|T")
+```
 ## Get Methods
 
 ```@docs
@@ -166,9 +169,9 @@ getSolutions(mod, ["time","h"], resultfile="C:/BouncingBal/tmpbouncingBall.mat")
 ## Set Methods
 
 ```@docs
-setInputs()
-setParameters()
-setSimulationOptions()
+setInputs
+setParameters
+setSimulationOptions
 ```
 
 Two setting possibilities are accepted using setXXXs(),where "XXX" can be any of above functions.
@@ -224,12 +227,12 @@ simulate(mod)
 ## Linearization
 
 ```@docs
-linearize()
-getLinearizationOptions()
-setLinearizationOptions()
-getLinearInputs()
-getLinearOutputs()
-getLinearStates()
+linearize
+getLinearizationOptions
+setLinearizationOptions
+getLinearInputs
+getLinearOutputs
+getLinearStates
 ```
 
 ### Examples

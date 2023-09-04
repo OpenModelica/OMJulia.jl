@@ -28,7 +28,7 @@ CONDITIONS OF OSMC-PL.
 
 """
     ModelicaSystem(omc, filename, modelname, library=nothing;
-                   actcommandLineOptions=nothing, variableFilter=nothing)
+                   commandLineOptions=nothing, variableFilter=nothing)
 
 Set command line options for OMCSession and build model `modelname` to prepare for a simulation.
 
@@ -164,6 +164,12 @@ end
 
 """
 Standard buildModel API which builds the modelica model
+
+    buildModel(omc; variableFilter=nothing)
+
+## Keyword Arguments
+
+- `variableFilter`:     Regex to filter variables in result file.
 """
 function buildModel(omc; variableFilter=nothing)
     if (variableFilter !== nothing)
@@ -939,8 +945,36 @@ function createcsvdata(omc, startTime, stopTime)
 end
 
 """
-function which returns the linearize model of modelica model,
-The function returns four matrices A,B,C,D
+function which returns the linearize model of modelica model, The function returns four matrices A, B, C, D
+
+    linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
+
+## Arguments
+
+- `omc`:        OpenModelica compiler session, see `OMCSession()`.
+
+## Keyword Arguments
+
+- `lintime` : Value specifies a time where the linearization of the model should be performed
+- `simflags`: Simulation flags, see [Simulation Runtime Flags](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/simulationflags.html).
+
+## Examples of using linearize() API
+
+```julia
+linearize(omc)
+```
+
+Specify result file:
+
+```julia
+linearize(omc, lintime="0.5")
+```
+
+Set simulation runtime flags:
+
+```julia
+linearize(omc, simflags="-noEmitEvent")
+```
 """
 function linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
 
