@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        julia-version: ['1.0.5', '1.8']
+        julia-version: ['1.9']
         julia-arch: ['x64']
         os: ['ubuntu-latest', 'windows-latest']
         omc-version: ['stable']
@@ -22,11 +22,13 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: "Set up OpenModelica Compiler"
-        uses: AnHeuermann/setup-openmodelica@v0.4
+        uses: AnHeuermann/setup-openmodelica@v0.6
         with:
           version: ${{ matrix.omc-version }}
           packages: |
             omc
+          libraries: |
+            'Modelica 4.0.0'
 
       - run: "omc --version"
 
@@ -41,3 +43,5 @@ jobs:
 
       - name: "Test OMJulia"
         uses: julia-actions/julia-runtest@v1
+        with:
+          coverage: false
