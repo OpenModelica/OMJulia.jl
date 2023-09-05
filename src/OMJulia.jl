@@ -182,11 +182,11 @@ function sendExpression(omc::OMCSession, expr::String; parsed=true)
         return error("Process Exited, No connection with OMC. Create a new instance of OMCSession")
     end
 
-    @info "sending expression: $(expr)"
+    @debug "sending expression: $(expr)"
     ZMQ.Sockets.send(omc.socket, expr)
-    @info "Receiving message from ZMQ socket"
+    @debug "Receiving message from ZMQ socket"
     message = ZMQ.Sockets.recv(omc.socket)
-    @info "Recieved message"
+    @debug "Recieved message"
     if parsed
         return Parser.parseOM(unsafe_string(message))
     else

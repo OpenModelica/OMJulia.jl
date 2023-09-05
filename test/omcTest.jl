@@ -41,8 +41,6 @@ import OMJulia
 
         oldwd = pwd()
         try
-            cd(workdir)
-
             omc = OMJulia.OMCSession()
             OMJulia.sendExpression(omc, "cd(\"$workdir\")")
             version = OMJulia.sendExpression(omc, "getVersion()")
@@ -58,11 +56,7 @@ import OMJulia
             @test occursin("The simulation finished successfully.", res["messages"])
 
             @test 3 == OMJulia.sendExpression(omc, "1+2")
-
-            #ret = OMJulia.sendExpression(omc, "quit()", parsed=false)
-            #@test ret == "quit requested, shutting server down\n"
-            #kill(omc.omcprocess)
-            # This is all stuck!
+            # TODO: sendExpression(quit()) and kill(omc.omcprocess) get stuck on Ubuntu
         finally
             cd(oldwd)
         end
@@ -81,36 +75,24 @@ import OMJulia
             workdir2 = replace(workdir2, "\\" => "\\\\")
         end
 
-        @info "Begin multiple sessions"
-        omc1 = OMJulia.OMCSession()
-        @info "AHeu1"
-        omc2 = OMJulia.OMCSession()
-        @info "AHeu2"
+        oldwd = pwd()
+        try
+            omc1 = OMJulia.OMCSession()
+            omc2 = OMJulia.OMCSession()
 
-        OMJulia.sendExpression(omc1, "cd(\"$workdir1\")")
-        @info "AHeu3"
-        @test true == OMJulia.sendExpression(omc1, "loadModel(Modelica)")
-        @info "AHeu4"
-        res = OMJulia.sendExpression(omc1, "simulate(Modelica.Blocks.Examples.PID_Controller)")
-        @info "AHeu5"
-        @test isfile(joinpath(@__DIR__, "test-omc1", "Modelica.Blocks.Examples.PID_Controller_res.mat"))
-        @info "AHeu6"
+            OMJulia.sendExpression(omc1, "cd(\"$workdir1\")")
+            @test true == OMJulia.sendExpression(omc1, "loadModel(Modelica)")
+            res = OMJulia.sendExpression(omc1, "simulate(Modelica.Blocks.Examples.PID_Controller)")
+            @test isfile(joinpath(@__DIR__, "test-omc1", "Modelica.Blocks.Examples.PID_Controller_res.mat"))
 
-        OMJulia.sendExpression(omc2, "cd(\"$workdir2\")")
-        @info "AHeu7"
-        @test true == OMJulia.sendExpression(omc2, "loadModel(Modelica)")
-        @info "AHeu8"
-        res = OMJulia.sendExpression(omc2, "simulate(Modelica.Blocks.Examples.PID_Controller)")
-        @info "AHeu9"
-        @test isfile(joinpath(@__DIR__, "test-omc2", "Modelica.Blocks.Examples.PID_Controller_res.mat"))
-        @info "AHeu10"
+            OMJulia.sendExpression(omc2, "cd(\"$workdir2\")")
+            @test true == OMJulia.sendExpression(omc2, "loadModel(Modelica)")
+            res = OMJulia.sendExpression(omc2, "simulate(Modelica.Blocks.Examples.PID_Controller)")
+            @test isfile(joinpath(@__DIR__, "test-omc2", "Modelica.Blocks.Examples.PID_Controller_res.mat"))
 
-        #OMJulia.sendExpression(omc1, "quit()", parsed=false)
-        #kill(omc1.omcprocess)
-        @info "AHeu11"
-        #OMJulia.sendExpression(omc2, "quit()", parsed=false)
-        #kill(omc2.omcprocess)
-        # This is all stuck!
-        @info "Fnished multiple sessions"
+            # TODO: sendExpression(quit()) and kill(omc.omcprocess) get stuck on Ubuntu
+        finally
+            cd(oldwd)
+        end
     end
 end
