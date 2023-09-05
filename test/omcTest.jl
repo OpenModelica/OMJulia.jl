@@ -35,11 +35,16 @@ import OMJulia
         rm(workdir, recursive=true, force=true)
         mkpath(workdir)
 
+        if Sys.iswindows()
+            workdir = replace(workdir, "\\" => "\\\\")
+        end
+
         oldwd = pwd()
         try
             cd(workdir)
 
             omc = OMJulia.OMCSession()
+            OMJulia.sendExpression(omc, "cd(\"$workdir\")")
             version = OMJulia.sendExpression(omc, "getVersion()")
             @test (startswith(version, "v1.") || startswith(version, "OpenModelica v1.") || startswith(version, "OpenModelica 1."))
             a = OMJulia.sendExpression(omc, "model a end a;")
