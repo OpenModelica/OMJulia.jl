@@ -43,4 +43,5 @@ import OMJulia
     OMJulia.simulate(mod,
                      resultfile = resultfile)
     @test isfile(resultfile)
+    OMJulia.quit(mod)
 end

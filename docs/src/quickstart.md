@@ -59,6 +59,7 @@ plt = plot(df,
 
 ```@example ModelicaSystem-example
 PlotlyDocumenter.to_documenter(plt) # hide
+OMJulia.quit(mod) # hide
 ```
 
 ## Scripting API with sendExpression
@@ -77,4 +78,5 @@ mkpath(omcWorkDoir)                                 # hide
 sendExpression(omc, "cd(\"$(omcWorkDoir)\")")       # hide
 sendExpression(omc, "model a Real s; equation s=sin(10*time); end a;")
 sendExpression(omc, "simulate(a)")
+OMJulia.quit(omc)
 ```

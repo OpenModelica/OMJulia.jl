@@ -23,8 +23,7 @@ julia> import Pkg; Pkg.add("OMJulia")
 
 ```julia
 julia> using OMJulia
-julia> using OMJulia: sendExpression
-julia> omc=OMJulia.OMCSession()
+julia> omc = OMJulia.OMCSession()
 julia> sendExpression(omc, "getVersion()")
 "OpenModelica v1.21.0-dev-185-g9d983b8e35 (64-bit)"
 julia> sendExpression(omc, "model a end a;")
@@ -47,7 +46,7 @@ Dict{String,Any} with 10 entries:
   "resultFile"        => "PATH/TO/Modelica.Electrical.Analog.Examples.CauerLowPassAnalog_res.mat"
   "timeSimCode"       => 0.0409317
   "timeBackend"       => 0.140713
-julia> OMJulia.sendExpression(omc, "quit()",parsed=false)
+julia> OMJulia.quit(omc)
 "quit requested, shutting server down\n"
 ```
 

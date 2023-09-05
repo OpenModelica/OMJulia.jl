@@ -56,7 +56,7 @@ import OMJulia
             @test occursin("The simulation finished successfully.", res["messages"])
 
             @test 3 == OMJulia.sendExpression(omc, "1+2")
-            # TODO: sendExpression(quit()) and kill(omc.omcprocess) get stuck on Ubuntu
+            OMJulia.quit(omc)
         finally
             cd(oldwd)
         end
@@ -90,7 +90,8 @@ import OMJulia
             res = OMJulia.sendExpression(omc2, "simulate(Modelica.Blocks.Examples.PID_Controller)")
             @test isfile(joinpath(@__DIR__, "test-omc2", "Modelica.Blocks.Examples.PID_Controller_res.mat"))
 
-            # TODO: sendExpression(quit()) and kill(omc.omcprocess) get stuck on Ubuntu
+            OMJulia.quit(omc1)
+            OMJulia.quit(omc2)
         finally
             cd(oldwd)
         end
