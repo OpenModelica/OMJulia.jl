@@ -8,6 +8,7 @@ ModelicaSystem
 
 ```@docs
 OMJulia.OMCSession
+OMJulia.quit
 ```
 
 Let us see the usage of ModelicaSystem with the help of Modelica model `ModSeborgCSTRorg`
@@ -83,12 +84,12 @@ getWorkDirectory
 getWorkDirectory(mod)
 ```
 
-
 ## Build Model
 
 ```@docs
 buildModel
 ```
+
 In case the Modelica model needs to be updated or additional simulation flags needs to be
 set using [`sendExpression`](@ref) The [`buildModel`](@ref) API can be used after
 [`ModelicaSystem`](@ref).
@@ -97,6 +98,7 @@ set using [`sendExpression`](@ref) The [`buildModel`](@ref) API can be used afte
 buildModel(omc)
 buildModel(omc, variableFilter="a|T")
 ```
+
 ## Get Methods
 
 ```@docs
@@ -266,4 +268,5 @@ sensitivity
 
 ```@repl ModSeborgCSTRorg-example
 (Sn, Sa) = sensitivity(mod, ["UA","EdR"], ["T","cA"], [1e-2,1e-4])
+OMJulia.quit(mod) # hide
 ```

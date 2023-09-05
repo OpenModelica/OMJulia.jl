@@ -161,6 +161,44 @@ mutable struct OMCSession
         this.context = ZMQ.Context()
         this.socket = ZMQ.Socket(this.context, REQ)
         ZMQ.connect(this.socket, filedata)
+
+        # Register finalizer to stop omc process when this OMCsession is no longer reachable
+        f(omc) = kill(omc.omcprocess)
+        finalizer(f, this)
+
         return this
+    end
+end
+
+"""
+    quit(omc::OMCSession; timeout=4::Integer)
+
+Quit OMCSession
+
+# Arguments
+    - `omc::OMCSession`:      OMC session.
+
+# Keywords
+    - `timeout=4::Integer`:   Timeout in seconds.
+"""
+function quit(omc::OMCSession; timeout=4::Integer)
+
+    tsk = @task sendExpression(omc, "quit()", parsed=false)
+    schedule(tsk)
+    Timer(timeout) do timer
+        istaskdone(tsk) || Base.throwto(tsk, InterruptException())
+    end
+    try
+        fetch(tsk)
+    catch _;
+        if !process_exited(omc.omcprocess)
+            @warn "omc process did not respond to send expression \"quit()\". Killing the process"
+            kill(omc.omcprocess)
+        end
+    end
+
+    if !process_exited(omc.omcprocess)
+        @warn "omc process didn't stop after evaluating expression \"quit()\". Killing the process"
+        kill(omc.omcprocess)
     end
 end

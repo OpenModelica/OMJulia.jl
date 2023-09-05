@@ -12,6 +12,7 @@ sendExpression
 
 ```@repl
 using OMJulia       # hide
-omc = OMCSession()  # hide
+omc = OMJulia.OMCSession()  # hide
 version = OMJulia.sendExpression(omc, "getVersion()")
+OMJulia.quit(omc)
 ```
