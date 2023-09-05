@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - new-doc # TODO: Remove before merging into master!
     tags: '*'
   pull_request:
 
@@ -21,7 +20,7 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup OpenModelica
         uses: AnHeuermann/setup-openmodelica@v0.6

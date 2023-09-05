@@ -19,7 +19,7 @@ jobs:
         omc-version: ['stable']
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: "Set up OpenModelica Compiler"
         uses: AnHeuermann/setup-openmodelica@v0.6
