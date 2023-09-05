@@ -38,7 +38,6 @@ Create new OpenModelica session.
 See also [`ModelicaSystem`](@ref).
 """
 mutable struct OMCSession
-    "Simulation flags, see [Simulation Runtime Flags](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/simulationflags.html)"
     simulationFlag
     inputFlag
     simulateOptions
@@ -68,8 +67,7 @@ mutable struct OMCSession
     context
     socket
     omcprocess
-
-    function OMCSession(omc=nothing)::OMCSession
+    function OMCSession(omc=nothing)
         this = new()
         this.overridevariables = Dict()
         this.simoptoverride = Dict()
@@ -93,18 +91,18 @@ mutable struct OMCSession
         this.linearFlag = false
         this.linearmodelname = ""
         this.linearOptions = Dict("startTime" => "0.0", "stopTime" => "1.0", "stepSize" => "0.002", "tolerance" => "1e-6")
-
         args1 = "--interactive=zmq"
         randPortSuffix = Random.randstring(10)
-        args2 = "-z=julia.$(randPortSuffix)"
-        if (Base.Sys.iswindows())
+        args2 = "+z=julia.$(randPortSuffix)"
+
+        if (Sys.iswindows())
             if (omc !== nothing)
                 ompath = replace(omc, r"[/\\]+" => "/")
                 dirpath = dirname(dirname(omc))
                 ## create a omc process with OPENMODELICAHOME set to custom directory
                 @info("Setting environment variable OPENMODELICAHOME=\"$dirpath\" for this session.")
                 withenv("OPENMODELICAHOME" => dirpath) do
-                    this.omcprocess = open(pipeline(`$omc $args1 $args2`, stdout="stdout.log", stderr="stderr.log"))
+                    this.omcprocess = open(pipeline(`$omc $args1 $args2`))
                 end
             else
                 omhome = ""
@@ -118,27 +116,27 @@ mutable struct OMCSession
                 # ompath=joinpath(omhome,"bin")
                 ## create a omc process with default OPENMODELICAHOME set in environment variable
                 withenv("OPENMODELICAHOME" => omhome) do
-                    this.omcprocess = open(pipeline(`$ompath $args1 $args2`, stdout="stdout.log", stderr="stderr.log"))
+                    this.omcprocess = open(pipeline(`$ompath $args1 $args2`))
                 end
             end
             portfile = join(["openmodelica.port.julia.", randPortSuffix])
         else
-            if (Base.Sys.isapple())
+            if (Sys.isapple())
                 # add omc to path if not exist
                 ENV["PATH"] = ENV["PATH"] * "/opt/openmodelica/bin"
                 if (omc !== nothing)
-                    this.omcprocess = open(pipeline(`$omc $args1 $args2`, stdout="stdout.log", stderr="stderr.log"))
+                    this.omcprocess = open(pipeline(`$omc $args1 $args2`))
                 else
-                    this.omcprocess = open(pipeline(`omc $args1 $args2`, stdout="stdout.log", stderr="stderr.log"))
+                    this.omcprocess = open(pipeline(`omc $args1 $args2`))
                 end
             else
                 if (omc !== nothing)
-                    this.omcprocess = open(pipeline(`$omc $args1 $args2`, stdout="stdout.log", stderr="stderr.log"))
+                    this.omcprocess = open(pipeline(`$omc $args1 $args2`))
                 else
-                    this.omcprocess = open(pipeline(`omc $args1 $args2`, stdout="stdout.log", stderr="stderr.log"))
+                    this.omcprocess = open(pipeline(`omc $args1 $args2`))
                 end
             end
-            portfile = join(["openmodelica.", ENV["USER"],".port.julia.", randPortSuffix])
+            portfile = join(["openmodelica.", ENV["USER"], ".port.julia.", randPortSuffix])
         end
         fullpath = joinpath(tempdir(), portfile)
         @info("Path to zmq file=\"$fullpath\"")
@@ -150,11 +148,7 @@ mutable struct OMCSession
         end
         # Catch omc error
         if process_exited(this.omcprocess) && this.omcprocess.exitcode != 0
-            throw(OMCError(this.omcprocess.cmd, "stdout.log", "stderr.log"))
-        else
-            @debug read(e.stdout_file, String)
-            @debug read(e.stderr_file, String)
-            rm.(["stdout.log", "stderr.log"], force=true)
+            throw(OMCError(this.omcprocess.cmd))
         end
         if tries >= 100
             throw(TimeoutError("ZMQ server port file \"$fullpath\" not created yet."))

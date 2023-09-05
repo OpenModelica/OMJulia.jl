@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        julia-version: ['1.0.5', '1.9']
+        julia-version: ['1.9']
         julia-arch: ['x64']
         os: ['ubuntu-latest', 'windows-latest']
         omc-version: ['stable']
@@ -46,3 +46,5 @@ jobs:
 
       - name: "Test OMJulia"
         uses: julia-actions/julia-runtest@v1
+        with:
+          coverage: false

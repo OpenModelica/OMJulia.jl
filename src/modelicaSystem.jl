@@ -188,7 +188,7 @@ function buildModel(omc; variableFilter=nothing)
     # println(buildmodelexpr)
 
     buildModelmsg = sendExpression(omc, buildmodelexpr)
-    # parsebuilexp=Base.Meta.parse(buildModelmsg)
+    # parsebuilexp=Meta.parse(buildModelmsg)
     if (!isempty(buildModelmsg[2]))
         omc.xmlfile = replace(joinpath(omc.tempdir, buildModelmsg[2]), r"[/\\]+" => "/")
         xmlparse(omc)
@@ -523,7 +523,7 @@ function simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
     end
 
     if (isfile(omc.xmlfile))
-        if (Base.Sys.iswindows())
+        if (Sys.iswindows())
             getexefile = replace(joinpath(omc.tempdir, join([omc.modelname,".exe"])), r"[/\\]+" => "/")
         else
             getexefile = replace(joinpath(omc.tempdir, omc.modelname), r"[/\\]+" => "/")
@@ -556,7 +556,7 @@ function simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
             # remove empty args in cmd objects
             cmd = filter!(e -> e ≠ "", [getexefile,overridevar,csvinput,r,simflags])
             # println(cmd)
-            if (Base.Sys.iswindows())
+            if (Sys.iswindows())
                 installPath = sendExpression(omc, "getInstallationDirectoryPath()")
                 envPath = ENV["PATH"]
                 newPath = "$(envPath);$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp"
@@ -637,7 +637,7 @@ function sensitivity(omc, Vp, Vv, Ve=[1e-2])
          Ve = Ve[1:nVp] # truncates Ve to same length as Vp
     end
     # Nominal parameters p0
-    par0 = [Base.parse(Float64, pp) for pp in getParameters(omc, Vp)]
+    par0 = [parse(Float64, pp) for pp in getParameters(omc, Vp)]
     # eXcitation parameters parX
     parX = [par0[i] * (1 + Ve[i]) for i in 1:nVp]
     # Combine parameter names and parameter values into vector of strings
@@ -816,7 +816,7 @@ function setInputs(omc, name)
         name = strip_space(name)
         value = split(name, "=")
         if (haskey(omc.inputlist, value[1]))
-            newval = Base.Meta.parse(value[2])
+            newval = Meta.parse(value[2])
             if (isa(newval, Expr))
                 omc.inputlist[value[1]] = [v.args for v in newval.args]
             else
@@ -831,7 +831,7 @@ function setInputs(omc, name)
         for var in name
             value = split(var, "=")
             if (haskey(omc.inputlist, value[1]))
-                newval = Base.Meta.parse(value[2])
+                newval = Meta.parse(value[2])
                 if (isa(newval, Expr))
                     omc.inputlist[value[1]] = [v.args for v in newval.args]
                 else
@@ -1019,7 +1019,7 @@ function linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
     end
 
     if (isfile(omc.xmlfile))
-        if (Base.Sys.iswindows())
+        if (Sys.iswindows())
             getexefile = replace(joinpath(omc.tempdir, join([omc.modelname,".exe"])), r"[/\\]+" => "/")
         else
             getexefile = replace(joinpath(omc.tempdir, omc.modelname), r"[/\\]+" => "/")
@@ -1038,7 +1038,7 @@ function linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
     # println(finalLinearizationexe)
 
     cd(omc.tempdir)
-    if (Base.Sys.iswindows())
+    if (Sys.iswindows())
         installPath = sendExpression(omc, "getInstallationDirectoryPath()")
         envPath = ENV["PATH"]
         newPath = "$(envPath);$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp"
@@ -1073,7 +1073,7 @@ function linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
         # to improve the performance by directly reading the matrices A, B, C and D from the julia code and avoid building the linearized modelica model
         include(omc.linearfile)
         ## to be evaluated at runtime, as Julia expects all functions should be known at the compilation time so efficient assembly code can be generated.
-        result = Base.invokelatest(linearized_model)
+        result = invokelatest(linearized_model)
         (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
         omc.linearstates = stateVars
         omc.linearinputs = inputVars
