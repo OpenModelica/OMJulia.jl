@@ -46,11 +46,9 @@ function Base.showerror(io::IO, e::OMCError)
     println(io, "Command $(e.cmd) failed")
     if !ismissing(e.stdout_file)
         println(io,  read(e.stdout_file, String))
-        rm(e.stdout_file, force=true)
     end
     if !ismissing(e.stdout_file)
         print(io, read(e.stderr_file, String))
-        rm(e.stderr_file, force=true)
     end
 end
 

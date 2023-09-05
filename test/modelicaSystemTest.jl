@@ -26,30 +26,21 @@ EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
 CONDITIONS OF OSMC-PL.
 =#
 
-module OMJulia
-    global IS_FILE_OMJULIA = false
+using Test
+import OMJulia
 
-    using DataFrames
-    using DataStructures
-    using LightXML
-    using Random
-    using ZMQ
+@testset "ModelicaSystem" begin
+    workdir = abspath(joinpath(@__DIR__, "test-modelicasystem"))
+    rm(workdir, recursive=true, force=true)
+    mkpath(workdir)
 
-    export sendExpression, ModelicaSystem
-    # getMethods
-    export getParameters, getQuantities, showQuantities, getInputs, getOutputs, getSimulationOptions, getSolutions, getContinuous, getWorkDirectory
-    # setMethods
-    export setInputs, setParameters, setSimulationOptions
-    # simulation
-    export simulate, buildModel
-    # Linearizion
-    export linearize, getLinearInputs, getLinearOutputs, getLinearStates, getLinearizationOptions, setLinearizationOptions
-    # sensitivity analysis
-    export sensitivity
+    resultfile = joinpath(workdir, "ModSeborgCSTRorg_res.mat")
 
-    include("error.jl")
-    include("parser.jl")
-    include("omcSession.jl")
-    include("sendExpression.jl")
-    include("modelicaSystem.jl")
+    mod = OMJulia.OMCSession()
+    OMJulia.ModelicaSystem(mod,
+                           joinpath(@__DIR__, "..", "docs", "testmodels", "ModSeborgCSTRorg.mo"),
+                           "ModSeborgCSTRorg")
+    OMJulia.simulate(mod,
+                     resultfile = resultfile)
+    @test isfile(resultfile)
 end

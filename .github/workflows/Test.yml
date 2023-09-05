@@ -19,7 +19,7 @@ jobs:
         omc-version: ['stable']
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: "Set up OpenModelica Compiler"
         uses: AnHeuermann/setup-openmodelica@v0.6
@@ -37,6 +37,9 @@ jobs:
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
+
+      - name: Cache Julia
+        uses: julia-actions/cache@v1
 
       - name: "Build OMJulia"
         uses: julia-actions/julia-buildpkg@v1
