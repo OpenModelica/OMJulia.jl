@@ -14,5 +14,4 @@ sendExpression
 using OMJulia       # hide
 omc = OMCSession()  # hide
 version = OMJulia.sendExpression(omc, "getVersion()")
-sendExpression(omc, "quit()", parsed=false) # hide
 ```

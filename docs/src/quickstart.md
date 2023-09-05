@@ -55,8 +55,6 @@ plt = plot(df,
            x=:time, y=:h,
            mode="lines",
            Layout(title="Bouncing Ball", height = 700))
-
-sendExpression(mod, "quit()", parsed=false)
 ```
 
 ```@example ModelicaSystem-example
@@ -79,5 +77,4 @@ mkpath(omcWorkDoir)                                 # hide
 sendExpression(omc, "cd(\"$(omcWorkDoir)\")")       # hide
 sendExpression(omc, "model a Real s; equation s=sin(10*time); end a;")
 sendExpression(omc, "simulate(a)")
-sendExpression(omc, "quit()", parsed=false)
 ```
