@@ -93,7 +93,10 @@ mutable struct OMCSession
         this.linearOptions = Dict("startTime" => "0.0", "stopTime" => "1.0", "stepSize" => "0.002", "tolerance" => "1e-6")
         args1 = "--interactive=zmq"
         randPortSuffix = Random.randstring(10)
-        args2 = "+z=julia.$(randPortSuffix)"
+        args2 = "-z=julia.$(randPortSuffix)"
+
+        stdoutfile = "stdout-$(randPortSuffix).log"
+        stderrfile = "stderr-$(randPortSuffix).log"
 
         if (Sys.iswindows())
             if (omc !== nothing)
@@ -102,7 +105,7 @@ mutable struct OMCSession
                 ## create a omc process with OPENMODELICAHOME set to custom directory
                 @info("Setting environment variable OPENMODELICAHOME=\"$dirpath\" for this session.")
                 withenv("OPENMODELICAHOME" => dirpath) do
-                    this.omcprocess = open(pipeline(`$omc $args1 $args2`))
+                    this.omcprocess = open(pipeline(`$omc $args1 $args2`, stdout=stdoutfile, stderr=stderrfile))
                 end
             else
                 omhome = ""
@@ -125,15 +128,15 @@ mutable struct OMCSession
                 # add omc to path if not exist
                 ENV["PATH"] = ENV["PATH"] * "/opt/openmodelica/bin"
                 if (omc !== nothing)
-                    this.omcprocess = open(pipeline(`$omc $args1 $args2`))
+                    this.omcprocess = open(pipeline(`$omc $args1 $args2`, stdout=stdoutfile, stderr=stderrfile))
                 else
-                    this.omcprocess = open(pipeline(`omc $args1 $args2`))
+                    this.omcprocess = open(pipeline(`omc $args1 $args2`, stdout=stdoutfile, stderr=stderrfile))
                 end
             else
                 if (omc !== nothing)
-                    this.omcprocess = open(pipeline(`$omc $args1 $args2`))
+                    this.omcprocess = open(pipeline(`$omc $args1 $args2`, stdout=stdoutfile, stderr=stderrfile))
                 else
-                    this.omcprocess = open(pipeline(`omc $args1 $args2`))
+                    this.omcprocess = open(pipeline(`omc $args1 $args2`, stdout=stdoutfile, stderr=stderrfile))
                 end
             end
             portfile = join(["openmodelica.", ENV["USER"], ".port.julia.", randPortSuffix])
@@ -148,8 +151,9 @@ mutable struct OMCSession
         end
         # Catch omc error
         if process_exited(this.omcprocess) && this.omcprocess.exitcode != 0
-            throw(OMCError(this.omcprocess.cmd))
+            throw(OMCError(this.omcprocess.cmd, stdoutfile, stderrfile))
         end
+        rm.([stdoutfile, stderrfile], force=true)
         if tries >= 100
             throw(TimeoutError("ZMQ server port file \"$fullpath\" not created yet."))
         end

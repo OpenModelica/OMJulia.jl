@@ -1,6 +1,6 @@
 #=
 This file is part of OpenModelica.
-Copyright (c) 1998-CurrentYear, Open Source Modelica Consortium (OSMC),
+Copyright (c) 1998-2023, Open Source Modelica Consortium (OSMC),
 c/o Linköpings universitet, Department of Computer and Information Science,
 SE-58183 Linköping, Sweden.
 
@@ -26,39 +26,21 @@ EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
 CONDITIONS OF OSMC-PL.
 =#
 
-"""
-omc process error
-"""
-struct OMCError <: Exception
-    cmd::Cmd
-    stdout_file::Union{String, Missing}
-    stderr_file::Union{String, Missing}
+using Test
+import OMJulia
 
-    function OMCError(cmd, stdout_file=missing, stderr_file=missing)
-        new(cmd, stdout_file, stderr_file)
-    end
-end
-"""
-Show error from log files
-"""
-function Base.showerror(io::IO, e::OMCError)
-    println(io, "OMCError ")
-    println(io, "Command $(e.cmd) failed")
-    if !ismissing(e.stdout_file)
-        println(io,  read(e.stdout_file, String))
-    end
-    if !ismissing(e.stdout_file)
-        print(io, read(e.stderr_file, String))
-    end
-end
+@testset "ModelicaSystem" begin
+    workdir = abspath(joinpath(@__DIR__, "test-modelicasystem"))
+    rm(workdir, recursive=true, force=true)
+    mkpath(workdir)
 
-"""
-Timeout error
-"""
-struct TimeoutError <: Exception
-    msg::String
-end
-function Base.showerror(io::IO, e::TimeoutError)
-  println(io, "TimeoutError")
-  print(e.msg)
+    resultfile = joinpath(workdir, "ModSeborgCSTRorg_res.mat")
+
+    mod = OMJulia.OMCSession()
+    OMJulia.ModelicaSystem(mod,
+                           joinpath(@__DIR__, "..", "docs", "testmodels", "ModSeborgCSTRorg.mo"),
+                           "ModSeborgCSTRorg")
+    OMJulia.simulate(mod,
+                     resultfile = resultfile)
+    @test isfile(resultfile)
 end
