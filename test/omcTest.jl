@@ -61,7 +61,8 @@ import OMJulia
 
             #ret = OMJulia.sendExpression(omc, "quit()", parsed=false)
             #@test ret == "quit requested, shutting server down\n"
-            kill(omc.omcprocess)
+            #kill(omc.omcprocess)
+            # This is all stuck!
         finally
             cd(oldwd)
         end
@@ -105,10 +106,11 @@ import OMJulia
         @info "AHeu10"
 
         #OMJulia.sendExpression(omc1, "quit()", parsed=false)
-        kill(omc1.omcprocess)
+        #kill(omc1.omcprocess)
         @info "AHeu11"
         #OMJulia.sendExpression(omc2, "quit()", parsed=false)
-        kill(omc2.omcprocess)
+        #kill(omc2.omcprocess)
+        # This is all stuck!
         @info "Fnished multiple sessions"
     end
 end
