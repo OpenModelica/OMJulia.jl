@@ -52,4 +52,5 @@ module OMJulia
     include("omcSession.jl")
     include("sendExpression.jl")
     include("modelicaSystem.jl")
+    include("api.jl")
 end
