@@ -46,7 +46,7 @@ end
 function parseSequence(tokens, last)
   res = []
   tok = popfirst!(tokens)
-  if (tok == last)
+  if tok == last
     return res
   end
   push!(res, parseOM(tok, tokens))
@@ -112,7 +112,7 @@ function parseOM(t::Record, tokens)
 end
 
 function parseOM(tokens::AbstractArray{Any,1})
-  if (length(tokens)==0)
+  if length(tokens)==0
     return nothing
   end
   t = popfirst!(tokens)

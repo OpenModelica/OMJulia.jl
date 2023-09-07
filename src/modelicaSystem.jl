@@ -71,16 +71,16 @@ See also [`OMCSession()`](@ref).
 function ModelicaSystem(omc::OMCSession,
                         filename::AbstractString,
                         modelname::AbstractString,
-                        library::Union{AbstractString, Tuple{AbstractString, AbstractString}, Array{AbstractString}, Array{Tuple{AbstractString, AbstractString}}, Nothing} = nothing;
-                        commandLineOptions::Union{AbstractString, Nothing} = nothing,
-                        variableFilter::Union{AbstractString, Nothing} = nothing)
+                        library::Union{<:AbstractString, Tuple{<:AbstractString, <:AbstractString}, Array{<:AbstractString}, Array{Tuple{<:AbstractString, <:AbstractString}}, Nothing} = nothing;
+                        commandLineOptions::Union{<:AbstractString, Nothing} = nothing,
+                        variableFilter::Union{<:AbstractString, Nothing} = nothing)
 
     ## check for commandLineOptions
-    if (commandLineOptions !== nothing)
+    if !isnothing(commandLineOptions)
         exp = join(["setCommandLineOptions(","","\"",commandLineOptions,"\"" ,")"])
         cmdexp = sendExpression(omc, exp)
-        if (!cmdexp)
-            return println(sendExpression(omc, "getErrorString()"))
+        if !cmdexp
+            error(sendExpression(omc, "getErrorString()"))
         end
     end
 
@@ -94,35 +94,35 @@ function ModelicaSystem(omc::OMCSession,
     omc.modelname = modelname
     omc.variableFilter = variableFilter
     filepath = replace(abspath(filename), r"[/\\]+" => "/")
-    if (isfile(filepath))
+    if isfile(filepath)
         loadmsg = sendExpression(omc, "loadFile(\"" * filepath * "\")")
-        if (!loadmsg)
-            return println(sendExpression(omc, "getErrorString()"))
+        if !loadmsg
+            error(sendExpression(omc, "getErrorString()"))
         end
     else
-        return println(filename, "! NotFound")
+        error("\"$filename\" not found")
     end
     omc.tempdir = replace(mktempdir(), r"[/\\]+" => "/")
-    if (!isdir(omc.tempdir))
-        return println(omc.tempdir, " cannot be created")
+    if !isdir(omc.tempdir)
+        error("Failed to create temp directory \"$(omc.tempdir)\"")
     end
     sendExpression(omc, "cd(\"" * omc.tempdir * "\")")
     # load Libraries provided by users
-    if (library !== nothing)
-        if (isa(library, AbstractString))
+    if !isnothing(library)
+        if isa(library, AbstractString)
             loadLibraryHelper(omc, library)
         # allow users to provide library version e.g. ("Modelica", "3.2.3")
-        elseif (isa(library, Tuple{AbstractString, AbstractString}))
-            if (!isempty(library[2]))
+        elseif isa(library, Tuple{AbstractString, AbstractString})
+            if !isempty(library[2])
                 loadLibraryHelper(omc, library[1], library[2])
             else
                 loadLibraryHelper(omc, library[1])
             end
-        elseif (isa(library, Array))
+        elseif isa(library, Array)
             for i in library
                 # allow users to provide library version e.g. ("Modelica", "3.2.3")
                 if isa(i, Tuple{AbstractString, AbstractString})
-                    if (!isempty(i[2]))
+                    if !isempty(i[2])
                         loadLibraryHelper(omc, i[1], i[2])
                     else
                         loadLibraryHelper(omc, i[1])
@@ -140,84 +140,91 @@ function ModelicaSystem(omc::OMCSession,
     buildModel(omc)
 end
 
-function loadLibraryHelper(omc, libname, version=nothing)
-    if (isfile(libname))
+"""
+    loadLibraryHelper(omc, libname, version=nothing)
+
+Load library `libname` by calling `loadFile` or `loadModel` via scripting API.
+"""
+function loadLibraryHelper(omc::OMCSession, libname, version=nothing)
+    if isfile(libname)
         libfile = replace(abspath(libname), r"[/\\]+" => "/")
         libfilemsg = sendExpression(omc, "loadFile(\"" * libfile * "\")")
-        if (!libfilemsg)
-            return println(sendExpression(omc, "getErrorString()"))
+        if !libfilemsg
+            error(sendExpression(omc, "getErrorString()"))
         end
     else
-        if version === nothing
+        if isnothing(version)
             libname = join(["loadModel(", libname, ")"])
         else
             libname = join(["loadModel(", libname, ", ", "{", "\"", version, "\"", "}", ")"])
         end
-        #println(libname)
         result = sendExpression(omc, libname)
-        if (!result)
-            return println(sendExpression(omc, "getErrorString()"))
+        if !result
+            error(sendExpression(omc, "getErrorString()"))
         end
     end
 end
 
-
 """
-Standard buildModel API which builds the modelica model
-
     buildModel(omc; variableFilter=nothing)
+
+Build modelica model.
+
+## Arguments
+
+- `omc::OMCSession`:        OpenModelica compiler session.
 
 ## Keyword Arguments
 
 - `variableFilter`:     Regex to filter variables in result file.
 """
-function buildModel(omc; variableFilter=nothing)
-    if (variableFilter !== nothing)
+function buildModel(omc::OMCSession; variableFilter::Union{<:AbstractString, Nothing} = nothing)
+    if !isnothing(variableFilter)
         omc.variableFilter = variableFilter
     end
-    # println(omc.variableFilter)
 
-    if (omc.variableFilter !== nothing)
+    if !isnothing(omc.variableFilter)
         varFilter = join(["variableFilter=", "\"", omc.variableFilter, "\""])
     else
         varFilter = join(["variableFilter=\"", ".*" ,"\""])
     end
-    # println(varFilter)
+    varFilter
 
     buildmodelexpr = join(["buildModel(",omc.modelname,", ", varFilter,")"])
-    # println(buildmodelexpr)
+    @debug "buildmodelexpr: $buildmodelexpr"
 
     buildModelmsg = sendExpression(omc, buildmodelexpr)
-    # parsebuilexp=Meta.parse(buildModelmsg)
-    if (!isempty(buildModelmsg[2]))
+    if !isempty(buildModelmsg[2])
         omc.xmlfile = replace(joinpath(omc.tempdir, buildModelmsg[2]), r"[/\\]+" => "/")
         xmlparse(omc)
     else
-        return println(sendExpression(omc, "getErrorString()"))
+        error(sendExpression(omc, "getErrorString()"))
     end
 end
 
 """
+    xmlparse(omc)
+
 This function parses the XML file generated from the buildModel()
 and stores the model variable into different categories namely parameter
 inputs, outputs, continuous etc..
 """
-function xmlparse(omc)
-    if (isfile(omc.xmlfile))
+function xmlparse(omc::OMCSession)
+    if isfile(omc.xmlfile)
         xdoc = parse_file(omc.xmlfile)
         # get the root element
         xroot = root(xdoc)  # an instance of XMLElement
         for c in child_nodes(xroot)  # c is an instance of XMLNode
             if is_elementnode(c)
                 e = XMLElement(c)  # this makes an XMLElement instance
-                if (name(e) == "DefaultExperiment")
+                if name(e) == "DefaultExperiment"
                     omc.simulateOptions["startTime"] = attribute(e, "startTime")
                     omc.simulateOptions["stopTime"] = attribute(e, "stopTime")
                     omc.simulateOptions["stepSize"] = attribute(e, "stepSize")
                     omc.simulateOptions["tolerance"] = attribute(e, "tolerance")
                     omc.simulateOptions["solver"] = attribute(e, "solver")
                 end
-                if (name(e) == "ModelVariables")
+                if name(e) == "ModelVariables"
                     for r in child_elements(e)
                         scalar = Dict()
                         scalar["name"] = attribute(r, "name")
@@ -232,37 +239,37 @@ function xmlparse(omc)
                             value = attribute(s, "start")
                             min = attribute(s, "min")
                             max = attribute(s, "max")
-                            if (value !== nothing)
+                            if !isnothing(value)
                                 scalar["start"] = value
                             else
                                 scalar["start"] = "None"
                             end
-                            if (min !== nothing)
+                            if !isnothing(min)
                                 scalar["min"] = min
                             else
                                 scalar["min"] = "None"
                             end
-                            if (max !== nothing)
+                            if !isnothing(max)
                                 scalar["max"] = max
                             else
                                 scalar["max"] = "None"
                             end
                         end
-                        if (omc.linearFlag == false)
-                            if (scalar["variability"] == "parameter")
+                        if !omc.linearization.linearFlag
+                            if scalar["variability"] == "parameter"
                                 if haskey(omc.overridevariables, scalar["name"])
                                     omc.parameterlist[scalar["name"]] = omc.overridevariables[scalar["name"]]
                                 else
                                     omc.parameterlist[scalar["name"]] = scalar["start"]
                                 end
                             end
-                            if (scalar["variability"] == "continuous")
+                            if scalar["variability"] == "continuous"
                                 omc.continuouslist[scalar["name"]] = scalar["start"]
                             end
-                            if (scalar["causality"] == "input")
+                            if scalar["causality"] == "input"
                                 omc.inputlist[scalar["name"]] = scalar["start"]
                             end
-                            if (scalar["causality"] == "output")
+                            if scalar["causality"] == "output"
                                 omc.outputlist[scalar["name"]] = scalar["start"]
                             end
                         end
@@ -279,36 +286,54 @@ function xmlparse(omc)
 end
 
 """
-standard getXXX() API
-function which return list of all variables parsed from xml file
+    getQuantities(omc, name=nothing)
+
+Return list of all variables parsed from xml file.
+
+## Arguments
+
+- `omc::OMCSession`:        OpenModelica compiler session.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`: Name(s) of variables to read from xml file.
+                                                                       If nothing is provided read all variables.
+
+See also [`showQuantities`](@ref).
 """
-function getQuantities(omc, name=nothing)
-    if (name === nothing)
+function getQuantities(omc::OMCSession, name::Union{<:AbstractString, Array{<:AbstractString, 1}, Nothing} = nothing)
+    if isnothing(name)
         return omc.quantitieslist
-    elseif (isa(name, String))
+    elseif isa(name, AbstractString)
         return [x for x in omc.quantitieslist if x["name"] == name]
-    elseif (isa(name, Array))
+    elseif isa(name, Array)
         return [x for y in name for x in omc.quantitieslist if x["name"] == y]
     end
 end
 
-function getQuantitiesHelper(omc, name=nothing; verbose=true)
+function getQuantitiesHelper(omc::OMCSession, name=nothing; verbose=true)
     for x in omc.quantitieslist
-        if (x["name"] == name)
+        if x["name"] == name
             return x
         end
     end
     if verbose
-        println("| info | getQuantities() failed: ", "\"", name, "\"", " does not exist")
+        @info "getQuantities() failed: \" $name \" does not exist."
     end
     return []
 end
 
 """
-standard getXXX() API
-function same as getQuantities(), but returns all the variables as table
+    showQuantities(omc, name=nothing)
+
+Return `DataFrame` of all variables parsed from xml file.
+
+## Arguments
+
+- `omc::OMCSession`:        OpenModelica compiler session.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:     Name(s) of variables to read from xml file.
+                                                                       If nothing is provided read all variables.
+
+See also [`getQuantities`](@ref).
 """
-function showQuantities(omc, name=nothing)
+function showQuantities(omc::OMCSession, name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing} = nothing)
     q = getQuantities(omc, name);
     # assuming that the keys of the first dictionary is representative for them all
     sym = map(Symbol, collect(keys(q[1])))
@@ -320,7 +345,9 @@ function showQuantities(omc, name=nothing)
 end
 
 
-## helper function to return getQuantities as table
+"""
+helper function to return getQuantities as DataFrame
+"""
 function df_from_dicts(arr::AbstractArray; missing_value="missing")
     cols = Set{Symbol}()
     for di in arr union!(cols, keys(di)) end
@@ -333,49 +360,70 @@ function df_from_dicts(arr::AbstractArray; missing_value="missing")
 end
 
 """
-standard getXXX() API
-function which returns the parameter variables parsed from xmlfile
+    getParameters(omc, name=nothing)
+
+Return parameter variables parsed from xml file.
+
+## Arguments
+
+- `omc::OMCSession`:        OpenModelica compiler session.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:     Name(s) of parameters to read from xml file.
+                                                                       If nothing is provided read all parameters.
 """
-function getParameters(omc, name=nothing)
-    if (name === nothing)
+function getParameters(omc::OMCSession, name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing} = nothing)
+    if isnothing(name)
         return omc.parameterlist
-    elseif (isa(name, String))
+    elseif isa(name, String)
         return get(omc.parameterlist, name, 0)
-    elseif (isa(name, Array))
+    elseif isa(name, Array)
         return [get(omc.parameterlist, x, 0) for x in name]
     end
 end
 
 """
-standard getXXX() API
-function which returns the SimulationOption variables parsed from xmlfile
+    getSimulationOptions(omc, name=nothing)
+
+Return SimulationOption variables parsed from xml file.
+
+## Arguments
+
+- `omc::OMCSession`:        OpenModelica compiler session.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:     Name(s) of parameters to read from xml file.
+                                                                       If nothing is provided read all parameters.
 """
-function getSimulationOptions(omc, name=nothing)
-    if (name === nothing)
+function getSimulationOptions(omc::OMCSession, name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing} = nothing)
+    if isnothing(name)
         return omc.simulateOptions
-    elseif (isa(name, String))
+    elseif isa(name, String)
         return get(omc.simulateOptions, name, 0)
-    elseif (isa(name, Array))
+    elseif isa(name, Array)
         return [get(omc.simulateOptions, x, 0) for x in name]
     end
 end
 
 """
-standard getXXX() API
-function which returns the continuous variables parsed from xmlfile
+    getContinuous(omc, name=nothing)
+
+Return continuous variables parsed from xml file.
+
+## Arguments
+
+- `omc::OMCSession`:        OpenModelica compiler session.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:  Name(s) of continuous variables to read from xml file.
+                                                                        If nothing is provided read all continuous variables.
 """
-function getContinuous(omc, name=nothing)
-    if (omc.simulationFlag == false)
-        if (name === nothing)
+function getContinuous(omc::OMCSession, name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing} = nothing)
+    if !omc.simulationFlag
+        if isnothing(name)
             return omc.continuouslist
-        elseif (isa(name, String))
+        elseif isa(name, String)
             return get(omc.continuouslist, name, 0)
-        elseif (isa(name, Array))
+        elseif isa(name, Array)
             return [get(omc.continuouslist, x, 0) for x in name]
         end
     end
-    if (omc.simulationFlag == true)
-        if (name === nothing)
+    if omc.simulationFlag
+        if isnothing(name)
             for name in keys(omc.continuouslist)
                 ## failing for variables with $ sign
                 ## println(name)
@@ -388,25 +436,25 @@ function getContinuous(omc, name=nothing)
                 end
             end
             return omc.continuouslist
-        elseif (isa(name, String))
-            if (haskey(omc.continuouslist, name))
+        elseif isa(name, String)
+            if haskey(omc.continuouslist, name)
                 value = getSolutions(omc, name)
                 value1 = value[1]
                 omc.continuouslist[name] = value1[end]
                 return get(omc.continuouslist, name, 0)
             else
-                return println(name, "  is not continuous")
+                error("\"$name\" is not continuous")
             end
-        elseif (isa(name, Array))
+        elseif isa(name, Array)
             continuousvaluelist = Any[]
             for x in name
-                if (haskey(omc.continuouslist, x))
+                if haskey(omc.continuouslist, x)
                     value = getSolutions(omc, x)
                     value1 = value[1]
                     omc.continuouslist[x] = value1[end]
                     push!(continuousvaluelist, value1[end])
                 else
-                    return println(x, "  is not continuous")
+                    error("\"$x\" is not continuous")
                 end
             end
             return continuousvaluelist
@@ -415,60 +463,76 @@ function getContinuous(omc, name=nothing)
 end
 
 """
-standard getXXX() API
-function which returns the input variables parsed from xmlfile
+    getInputs(omc, name=nothing)
+
+Return input variables parsed from xml file.
+If input variables have no start value the returned value is `\"None\"`.
+
+## Arguments
+
+- `omc::OMCSession`:        OpenModelica compiler session.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:     Name(s) of input variables to read from xml file.
+                                                                       If nothing is provided read all input variables.
 """
-function getInputs(omc, name=nothing)
-    if (name === nothing)
+function getInputs(omc::OMCSession, name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing} = nothing)
+    if isnothing(name)
         return omc.inputlist
-    elseif (isa(name, String))
+    elseif isa(name, String)
         return get(omc.inputlist, name, 0)
-    elseif (isa(name, Array))
+    elseif isa(name, Array)
         return [get(omc.inputlist, x, 0) for x in name]
     end
 end
 
 """
-standard getXXX() API
-function which returns the output variables parsed from xmlfile
+    getInputs(omc, name=nothing)
+
+Return output variables parsed from xml file.
+If output variables have no start value the returned value is `\"None\"`.
+
+## Arguments
+
+- `omc::OMCSession`:        OpenModelica compiler session.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:  Name(s) of output variables to read from xml file.
+                                                                        If nothing is provided read all output variables.
 """
-function getOutputs(omc, name=nothing)
-    if (omc.simulationFlag == false)
-        if (name === nothing)
+function getOutputs(omc::OMCSession, name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}=nothing)
+    if !omc.simulationFlag
+        if isnothing(name)
             return omc.outputlist
-        elseif (isa(name, String))
+        elseif isa(name, String)
             return get(omc.outputlist, name, 0)
-        elseif (isa(name, Array))
+        elseif isa(name, Array)
             return [get(omc.outputlist, x, 0) for x in name]
         end
     end
-    if (omc.simulationFlag == true)
-        if (name === nothing)
+    if omc.simulationFlag
+        if isnothing(name)
             for name in keys(omc.outputlist)
                 value = getSolutions(omc, name)
                 value1 = value[1]
                 omc.outputlist[name] = value1[end]
             end
             return omc.outputlist
-        elseif (isa(name, String))
-            if (haskey(omc.outputlist, name))
+        elseif isa(name, String)
+            if haskey(omc.outputlist, name)
                 value = getSolutions(omc, name)
                 value1 = value[1]
                 omc.outputlist[name] = value1[end]
                 return get(omc.outputlist, name, 0)
             else
-                return println(name, "is not Output")
+                error("\"$name\" is not an output variable")
             end
-        elseif (isa(name, Array))
+        elseif isa(name, Array)
             valuelist = Any[]
             for x in name
-                if (haskey(omc.outputlist, x))
+                if haskey(omc.outputlist, x)
                     value = getSolutions(omc, x)
                     value1 = value[1]
                     omc.outputlist[x] = value1[end]
                     push!(valuelist, value1[end])
                 else
-                    return println(x, "is not Output")
+                    error("\"$x\" is not an output variable")
                 end
             end
             return valuelist
@@ -477,18 +541,19 @@ function getOutputs(omc, name=nothing)
 end
 
 """
-    simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
+    simulate(omc; resultfile=nothing, simflags="", verbose=false)
 
 Simulate modelica model.
 
 ## Arguments
 
-- `omc`:        OpenModelica compiler session, see `OMCSession()`.
+- `omc::OMCSession`:        OpenModelica compiler session, see `OMCSession()`.
 
 ## Keyword Arguments
 
-- `resultFile`: Result file to write simulation results into.
-- `simflags`:   Simulation flags, see [Simulation Runtime Flags](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/simulationflags.html).
+- `resultFile::Union{String, Nothing}`: Result file to write simulation results into.
+- `simflags::String`:                   Simulation flags, see [Simulation Runtime Flags](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/simulationflags.html).
+- `verbose::Bool`:                      [debug] Log cmd call to `log.txt` and `error.txt`.
 
 ## Examples
 
@@ -508,9 +573,12 @@ Set simulation runtime flags:
 simulate(omc, simflags="-noEmitEvent -override=e=0.3,g=9.3")
 ```
 """
-function simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
-    # println(this.xmlfile)
-    if (resultfile === nothing)
+function simulate(omc::OMCSession;
+                  resultfile::Union{String, Nothing} = nothing,
+                  simflags::String = "",
+                  verbose::Bool = false)
+
+    if isnothing(resultfile)
         r = ""
         omc.resultfile = replace(joinpath(omc.tempdir, join([omc.modelname,"_res.mat"])), r"[/\\]+" => "/")
     else
@@ -518,20 +586,16 @@ function simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
         omc.resultfile = replace(joinpath(omc.tempdir, resultfile), r"[/\\]+" => "/")
     end
 
-    if (simflags === nothing)
-        simflags = ""
-    end
-
-    if (isfile(omc.xmlfile))
-        if (Sys.iswindows())
+    if isfile(omc.xmlfile)
+        if Sys.iswindows()
             getexefile = replace(joinpath(omc.tempdir, join([omc.modelname,".exe"])), r"[/\\]+" => "/")
         else
             getexefile = replace(joinpath(omc.tempdir, omc.modelname), r"[/\\]+" => "/")
         end
-        if (isfile(getexefile))
+        if isfile(getexefile)
             ## change to tempdir
             cd(omc.tempdir)
-            if (!isempty(omc.overridevariables) | !isempty(omc.simoptoverride))
+            if !isempty(omc.overridevariables) | !isempty(omc.simoptoverride)
                 tmpdict = merge(omc.overridevariables, omc.simoptoverride)
                 overridefile = replace(joinpath(omc.tempdir, join([omc.modelname,"_override.txt"])), r"[/\\]+" => "/")
                 file = open(overridefile, "w")
@@ -545,7 +609,7 @@ function simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
             else
                 overridevar = ""
             end
-            if (omc.inputFlag == true)
+            if omc.inputFlag
                 createcsvdata(omc, omc.simulateOptions["startTime"], omc.simulateOptions["stopTime"])
                 csvinput = join(["-csvInput=",omc.csvfile])
                 # run(pipeline(`$getexefile $overridevar $csvinput`,stdout="log.txt",stderr="error.txt"))
@@ -556,7 +620,7 @@ function simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
             # remove empty args in cmd objects
             cmd = filter!(e -> e ≠ "", [getexefile,overridevar,csvinput,r,simflags])
             # println(cmd)
-            if (Sys.iswindows())
+            if Sys.iswindows()
                 installPath = sendExpression(omc, "getInstallationDirectoryPath()")
                 envPath = ENV["PATH"]
                 newPath = "$(envPath);$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp"
@@ -578,7 +642,7 @@ function simulate(omc; resultfile=nothing, simflags=nothing, verbose=true)
             # omc.resultfile=replace(joinpath(omc.tempdir,join([omc.modelname,"_res.mat"])),r"[/\\]+" => "/")
             omc.simulationFlag = true
         else
-            return println("! Simulation Failed")
+            error("Simulation Failed")
         end
         ## change to currentworkingdirectory
         cd(omc.currentdir)
@@ -589,7 +653,7 @@ end
 function which converts modelicamodel to FMU
 """
 function convertMo2FMU(omc)
-    if (!isempty(omc.modelname))
+    if !isempty(omc.modelname)
         fmuexpression = join(["translateModelFMU(",omc.modelname,")"])
         sendExpression(omc, fmuexpression)
     else
@@ -600,9 +664,9 @@ end
 """
 function which converts FMU to modelicamodel
 """
-function convertFmu2Mo(omc, fmupath)
+function convertFmu2Mo(omc::OMCSession, fmupath)
     fmupath = replace(abspath(fmupath), r"[/\\]+" => "/")
-    if (isfile(fmupath))
+    if isfile(fmupath)
         result = sendExpression(omc, "importFMU(\"" * fmupath * "\")")
         return joinpath(omc.tempdir, result)
     else
@@ -611,21 +675,27 @@ function convertFmu2Mo(omc, fmupath)
 end
 
 """
-Method for computing numeric sensitivity of OpenModelica object
+    sensitivity(omc::OMCSession, Vp, Vv, Ve=[1e-2])
 
-   Arguments:
-   ----------
-   1st arg: Vp  # Array of strings of Modelica Parameter names
-   2nd arg: Vv  # Array of strings of Modelica Variable names
-   3rd arg: Ve  # Array of float Excitations of parameters; defaults to scalar 1e-2
+Method for computing numeric sensitivity of OpenModelica object.
 
-   Returns:
-   --------
-   1st return: VSname # Vector of Sensitivity names
-   2nd return: Sarray # Array of sensitivies: vector of elements per parameter,
-   each element containing time series per variable
+## Arguments
+
+- `omc::OMCSession`:                OpenModelica compiler session.
+- `Vp::Array{<:AbstractString, 1}`:   Modelica Parameter names.
+- `Vv::Array{<:AbstractString, 1}`:   Modelica Variable names.
+- `Ve::Array{Float64, 1}`:          Excitations of parameters; defaults to scalar 1e-2
+
+## Return
+
+- `VSname::Vector{Vector{String}}`:             Vector of sensitivity names
+- `VSarray::Vector{Vector{Vector{Float64}}}`:   Vector of sensitivies: vector of elements per parameter
+Each element containing time series per variable
 """
-function sensitivity(omc, Vp, Vv, Ve=[1e-2])
+function sensitivity(omc::OMCSession,
+                     Vp::Array{<:AbstractString, 1},
+                     Vv::Array{<:AbstractString, 1},
+                     Ve::Array{Float64, 1} = [1e-2])::Tuple{Vector{Vector{String}}, Vector{Vector{Vector{Float64}}}}
     ## Production quality code should check type and form of input arguments
     Ve = map(Float64, Ve) # converting eVements of excitation to floats
     nVp = length(Vp) # number of parameter names
@@ -674,88 +744,116 @@ function sensitivity(omc, Vp, Vv, Ve=[1e-2])
 end
 
 """
-standard getXXX() API
-Function which reads the result file and return the simulation results to user
-which can be used for plotting or further anlaysis
+    getSolutions(omc::OMCSession, name=nothing; resultfile=nothing)
+
+
+Read result file and return simulation results
+
+## Arguments
+
+- `omc::OMCSession`:        OpenModelica compiler session.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:  Name(s) of variables to read from result file.
+                                                                        If nothing is provided read all variables.
+
+## Keyword Arguments
+
+- `resultfile::Union{AbstractString, Nothing}`:     Path to result file. If nothing is provided use saved result file.
 """
-function getSolutions(omc, name=nothing; resultfile=nothing)
-    if (resultfile === nothing)
+function getSolutions(omc::OMCSession,
+                      name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing} = nothing;
+                      resultfile::Union{AbstractString, Nothing} = nothing)
+
+    if isnothing(resultfile )
         resfile = omc.resultfile
     else
         resfile = resultfile
     end
-    if (!isfile(resfile))
-        println("ResultFile does not exist !", abspath(resfile))
-        return
+
+    # Error handling
+    if !isfile(resfile)
+        error("Result file $(abspath(resfile)) does not exist !")
     end
-    if (!isempty(resfile))
-        simresultvars = sendExpression(omc, "readSimulationResultVars(\"" * resfile * "\")")
-        sendExpression(omc, "closeSimulationResultFile()")
-        if (name === nothing)
-            return simresultvars
-        elseif (isa(name, String))
-            if (!(name in simresultvars) && name != "time")
-                println(name, " does not exist\n")
-                return
-            end
-            resultvar = join(["{",name,"}"])
-            simres = sendExpression(omc, "readSimulationResult(\"" * resfile * "\"," * resultvar * ")")
-            sendExpression(omc, "closeSimulationResultFile()")
-            return simres
-        elseif (isa(name, Array))
-            for var in name
-                if (!(var in simresultvars) && var != "time")
-                    println(var, " does not exist\n")
-                    return
-                end
-            end
-            resultvar = join(["{",join(name, ","),"}"])
-            # println(resultvar)
-            simres = sendExpression(omc, "readSimulationResult(\"" * resfile * "\"," * resultvar * ")")
-            sendExpression(omc, "closeSimulationResultFile()")
-            return simres
+    if isempty(resfile)
+        error("Model not Simulated, Simulate the model to get the results")
+    end
+
+    # Read variables
+    simresultvars = sendExpression(omc, "readSimulationResultVars(\"" * resfile * "\")")
+    sendExpression(omc, "closeSimulationResultFile()")
+    if isnothing(name)
+        return simresultvars
+    elseif isa(name, String)
+        if !(name in simresultvars) && name != "time"
+            error("'$name' not found in simulation results")
         end
-    else
-        return println("Model not Simulated, Simulate the model to get the results")
+        resultvar = join(["{",name,"}"])
+        simres = sendExpression(omc, "readSimulationResult(\"" * resfile * "\"," * resultvar * ")")
+        sendExpression(omc, "closeSimulationResultFile()")
+        return simres
+    elseif isa(name, Array)
+        for var in name
+            if !(var in simresultvars) && var != "time"
+                error("'$name' not found in simulation results")
+            end
+        end
+        resultvar = join(["{",join(name, ","),"}"])
+        # println(resultvar)
+        simres = sendExpression(omc, "readSimulationResult(\"" * resfile * "\"," * resultvar * ")")
+        sendExpression(omc, "closeSimulationResultFile()")
+        return simres
     end
 end
 
 """
-standard setXXX() API
-function which sets new Parameter values for parameter variables defined by users
+    setParameters(omc, name; verbose=true)
+
+Set parameter values for parameter variables defined by users
+
+## Arguments
+
+- `omc::OMCSession`: OpenModelica compiler session.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}}`:  String \"Name=value\" or
+                                                               vector of strings [\"Name1=value1\",\"Name2=value2\",\"Name3=value3\"])
+
+## Keyword Arguments
+
+- `verbose::Bool`:     Display additional info if setParameters failed.
 """
-function setParameters(omc, name;verbose=true)
-    if (isa(name, String))
+function setParameters(omc::OMCSession,
+                       name::Union{<:AbstractString, Array{<:AbstractString,1}};
+                       verbose::Bool = true)
+
+    if isa(name, String)
         name = strip_space(name)
         value = split(name, "=")
         # setxmlfileexpr="setInitXmlStartValue(\""* this.xmlfile * "\",\""* value[1]* "\",\""*value[2]*"\",\""*this.xmlfile*"\")"
         # println(haskey(this.parameterlist, value[1]))
-        if (haskey(omc.parameterlist, value[1]))
+        if haskey(omc.parameterlist, value[1])
             # should we use this ???
             # setparameterValue = join(["setParameterValue(",omc.modelname,",", value[1],",",value[2],")"])
             # println(setparameterValue)
-            if (isParameterChangeable(omc, value[1], value[2]))
+            if isParameterChangeable(omc, value[1], value[2])
                 omc.parameterlist[value[1]] = value[2]
                 omc.overridevariables[value[1]] = value[2]
             end
         else
             if verbose
-                println("| info |  setParameters() failed: ", "\"", value[1], "\"", " is not a parameter")
+                @info("setParameters() failed: \" $(value[1])\" is not a parameter")
             end
         end
     # omc.sendExpression(setxmlfileexpr)
-    elseif (isa(name, Array))
+    elseif isa(name, Array)
         name = strip_space(name)
         for var in name
             value = split(var, "=")
-            if (haskey(omc.parameterlist, value[1]))
-                if (isParameterChangeable(omc, value[1], value[2]))
+            if haskey(omc.parameterlist, value[1])
+                if isParameterChangeable(omc, value[1], value[2])
                     omc.parameterlist[value[1]] = value[2]
                     omc.overridevariables[value[1]] = value[2]
                 end
             else
                 if verbose
-                    println("| info |  setParameters() failed: ", "\"", value[1], "\"", " is not a parameter")
+                    @info("setParameters() failed: \" $(value[1])\" is not a parameter")
                 end
             end
         end
@@ -765,12 +863,12 @@ end
 """
 check for parameter modifiable or not
 """
-function isParameterChangeable(omc, name, value; verbose=true)
+function isParameterChangeable(omc::OMCSession, name, value; verbose=true)
     q = getQuantities(omc, String(name))
-    if (isempty(q))
+    if isempty(q)
         println(name, " does not exist in the model")
         return false
-    elseif (q[1]["changeable"] == "false")
+    elseif q[1]["changeable"] == "false"
         if verbose
             println("| info |  setParameters() failed : It is not possible to set the following signal ", "\"", name, "\"", ", It seems to be structural, final, protected or evaluated or has a non-constant binding, use sendExpression(setParameterValue(", omc.modelname, ", ", name, ", ", value, "), parsed=false)", " and rebuild the model using buildModel() API")
         end
@@ -780,59 +878,73 @@ function isParameterChangeable(omc, name, value; verbose=true)
 end
 
 """
-standard setXXX() API
-function which sets new Simulation Options values defined by users
+    setSimulationOptions(omc, name)
+
+Set simulation option values like `stopTime` or `stepSize`.
+
+## Arguments
+
+- `omc::OMCSession`: OpenModelica compiler session.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}}`:  String \"Name=value\" or
+                                                               vector of strings [\"Name1=value1\",\"Name2=value2\",\"Name3=value3\"])
 """
-function setSimulationOptions(omc, name)
-    if (isa(name, String))
+function setSimulationOptions(omc::OMCSession, name::Union{<:AbstractString, Array{<:AbstractString,1}})
+    if isa(name, String)
         name = strip_space(name)
         value = split(name, "=")
-        if (haskey(omc.simulateOptions, value[1]))
+        if haskey(omc.simulateOptions, value[1])
             omc.simulateOptions[value[1]] = value[2]
             omc.simoptoverride[value[1]] = value[2]
         else
-            return println(value[1], "  is not a SimulationOption")
+            error("\"$(value[1])\" is not a simulation option")
         end
-    elseif (isa(name, Array))
+    elseif isa(name, Array)
         name = strip_space(name)
         for var in name
             value = split(var, "=")
-            if (haskey(omc.simulateOptions, value[1]))
+            if haskey(omc.simulateOptions, value[1])
                 omc.simulateOptions[value[1]] = value[2]
                 omc.simoptoverride[value[1]] = value[2]
             else
-                return println(value[1], "  is not a SimulationOption")
+                error("\"$(value[1])\" is not a simulation option")
             end
         end
     end
 end
 
 """
-standard setXXX() API
-function which sets new input values for input variables defined by users
+    setInputs(omc, name)
+
+Set new values for input variables.
+
+## Arguments
+
+- `omc::OMCSession`: OpenModelica compiler session.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}}`:  String \"Name=value\" or
+                                                               vector of strings [\"Name1=value1\",\"Name2=value2\",\"Name3=value3\"])
 """
-function setInputs(omc, name)
-    if (isa(name, String))
+function setInputs(omc::OMCSession, name)
+    if isa(name, String)
         name = strip_space(name)
         value = split(name, "=")
-        if (haskey(omc.inputlist, value[1]))
+        if haskey(omc.inputlist, value[1])
             newval = Meta.parse(value[2])
-            if (isa(newval, Expr))
+            if isa(newval, Expr)
                 omc.inputlist[value[1]] = [v.args for v in newval.args]
             else
                 omc.inputlist[value[1]] = value[2]
             end
             omc.inputFlag = true
         else
-            return println(value[1], "  is not a Input")
+            error("$(value[1]) is not an input variable")
         end
-    elseif (isa(name, Array))
+    elseif isa(name, Array)
         name = strip_space(name)
         for var in name
             value = split(var, "=")
-            if (haskey(omc.inputlist, value[1]))
+            if haskey(omc.inputlist, value[1])
                 newval = Meta.parse(value[2])
-                if (isa(newval, Expr))
+                if isa(newval, Expr)
                     omc.inputlist[value[1]] = [v.args for v in newval.args]
                 else
                     omc.inputlist[value[1]] = value[2]
@@ -840,26 +952,26 @@ function setInputs(omc, name)
                 # omc.overridevariables[value[1]]=value[2]
                 omc.inputFlag = true
             else
-                return println(value[1], "  is not a Input")
+                error("$(value[1]) is not an input variable")
             end
         end
     end
 end
 
 function strip_space(name)
-    if (isa(name, String))
+    if isa(name, String)
         return filter(x -> !isspace(x), name)
-    elseif (isa(name, Array))
+    elseif isa(name, Array)
         return [filter(x -> !isspace(x), s) for s in name]
     end
 end
 
 """
-Function which returns the working directory of current OMJulia Session
-for each session a temporary directory is created and the simulation results
-are generated
+    getWorkDirectory(omc)
+
+Return working directory of OMJulia.OMCsession `omc`.
 """
-function getWorkDirectory(omc)
+function getWorkDirectory(omc::OMCSession)
     return omc.tempdir
 end
 
@@ -867,7 +979,7 @@ end
 function which creates the csvinput when user specify new values
 for input variables, this function is used in context with setInputs()
 """
-function createcsvdata(omc, startTime, stopTime)
+function createcsvdata(omc::OMCSession, startTime, stopTime)
     omc.csvfile = joinpath(omc.tempdir, join([omc.modelname,".csv"]))
     file = open(omc.csvfile, "w")
     write(file, join(["time",",",join(keys(omc.inputlist), ","),",","end","\n"]))
@@ -876,7 +988,7 @@ function createcsvdata(omc, startTime, stopTime)
 
     time = Any[]
     for val in value
-        if (isa(val, Array))
+        if isa(val, Array)
             checkflag = "true"
             for v in val
                 push!(time, v[1])
@@ -884,26 +996,26 @@ function createcsvdata(omc, startTime, stopTime)
         end
     end
 
-    if (length(time) == 0)
+    if length(time) == 0
         push!(time, startTime)
         push!(time, stopTime)
     end
 
     previousvalue = Dict()
     for i in sort(time)
-        if (isa(i, SubString{String}) || isa(i, String))
+        if isa(i, SubString{String}) || isa(i, String)
             write(file, i, ",")
         else
             write(file, join(i, ","), ",")
         end
         listcount = 1
         for val in value
-            if (isa(val, Array))
+            if isa(val, Array)
                 newval = val
                 count = 1
                 found = "false"
                 for v in newval
-                    if (i == v[1])
+                    if i == v[1]
                         data = eval(v[2])
                         write(file, join(data, ","), ",")
                         previousvalue[listcount] = data
@@ -913,13 +1025,13 @@ function createcsvdata(omc, startTime, stopTime)
                     end
                     count = count + 1
                 end
-                if (found == "false")
+                if found == "false"
                     write(file, join(previousvalue[listcount], ","), ",")
                 end
             end
 
-            if (isa(val, String))
-                if (val == "None")
+            if isa(val, String)
+                if val == "None"
                     val = "0"
                 else
                     val = val
@@ -928,8 +1040,8 @@ function createcsvdata(omc, startTime, stopTime)
                 previousvalue[listcount] = val
             end
 
-            if (isa(val, SubString{String}))
-                if (val == "None")
+            if isa(val, SubString{String})
+                if val == "None"
                     val = "0"
                 else
                     val = val
@@ -951,7 +1063,7 @@ function which returns the linearize model of modelica model, The function retur
 
 ## Arguments
 
-- `omc`:        OpenModelica compiler session, see `OMCSession()`.
+- `omc::OMCSession`:        OpenModelica compiler session.
 
 ## Keyword Arguments
 
@@ -976,13 +1088,13 @@ Set simulation runtime flags:
 linearize(omc, simflags="-noEmitEvent")
 ```
 """
-function linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
+function linearize(omc::OMCSession; lintime = nothing, simflags= nothing, verbose=true)
 
-    if (isempty(omc.xmlfile))
-        return println("Linearization cannot be performed as the model is not build, use ModelicaSystem() to build the model first")
+    if isempty(omc.xmlfile)
+        error("Linearization cannot be performed as the model is not build, use ModelicaSystem() to build the model first")
     end
 
-    if (simflags === nothing)
+    if isnothing(simflags)
         simflags="";
     end
 
@@ -997,48 +1109,48 @@ function linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
         overridelist = true
     end
 
-    for t in keys(omc.linearOptions)
-        val = join([t,"=",omc.linearOptions[t], "\n"])
+    for t in keys(omc.linearization.linearOptions)
+        val = join([t,"=",omc.linearization.linearOptions[t], "\n"])
         write(file, val)
         overridelist = true
     end
 
     close(file)
 
-    if (overridelist == true)
+    if overridelist
         overrideFlag = join(["-overrideFile=", overridelinearfile])
     else
         overrideFlag = "";
     end
 
-    if (omc.inputFlag == true)
-        createcsvdata(omc, omc.linearOptions["startTime"], omc.linearOptions["stopTime"])
+    if omc.inputFlag
+        createcsvdata(omc, omc.linearization.linearOptions["startTime"], omc.linearization.linearOptions["stopTime"])
         csvinput = join(["-csvInput=", omc.csvfile])
     else
         csvinput = "";
     end
 
-    if (isfile(omc.xmlfile))
-        if (Sys.iswindows())
+    if isfile(omc.xmlfile)
+        if Sys.iswindows()
             getexefile = replace(joinpath(omc.tempdir, join([omc.modelname,".exe"])), r"[/\\]+" => "/")
         else
             getexefile = replace(joinpath(omc.tempdir, omc.modelname), r"[/\\]+" => "/")
         end
     else
-        return println("Linearization cannot be performed as : " + omc.xmlfile + " not found, please build the modelica again using ModelicaSystem()")
+        error("\"$(omc.xmlfile)\" not found, please build the model again using ModelicaSystem()")
     end
 
-    if (lintime !== nothing)
+    if !isnothing(lintime)
         linruntime = join(["-l=", lintime])
     else
-        linruntime = join(["-l=", omc.linearOptions["stopTime"]])
+        linruntime = join(["-l=", omc.linearization.linearOptions["stopTime"]])
     end
 
     finalLinearizationexe = filter!(e -> e ≠ "", [getexefile, linruntime, overrideFlag, csvinput, simflags])
     # println(finalLinearizationexe)
 
     cd(omc.tempdir)
-    if (Sys.iswindows())
+    if Sys.iswindows()
         installPath = sendExpression(omc, "getInstallationDirectoryPath()")
         envPath = ENV["PATH"]
         newPath = "$(envPath);$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp"
@@ -1058,105 +1170,138 @@ function linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
         end
     end
 
-    omc.linearmodelname = "linearized_model"
-    omc.linearfile = joinpath(omc.tempdir, join([omc.linearmodelname,".jl"]))
+    omc.linearization.linearmodelname = "linearized_model"
+    omc.linearization.linearfile = joinpath(omc.tempdir, join([omc.linearization.linearmodelname,".jl"]))
 
     # support older openmodelica versions before OpenModelica v1.16.2 where linearize() generates "linear_modelname.mo" file
-    if(!isfile(omc.linearfile))
-        omc.linearmodelname = join(["linear_", omc.modelname])
-        omc.linearfile = joinpath(omc.tempdir, join([omc.linearmodelname, ".jl"]))
+    if(!isfile(omc.linearization.linearfile))
+        omc.linearization.linearmodelname = join(["linear_", omc.modelname])
+        omc.linearization.linearfile = joinpath(omc.tempdir, join([omc.linearization.linearmodelname, ".jl"]))
     end
 
-    if (isfile(omc.linearfile))
-        omc.linearFlag = true
+    if isfile(omc.linearization.linearfile)
+        omc.linearization.linearFlag = true
         # this function is called from the generated Julia code linearized_model.jl,
         # to improve the performance by directly reading the matrices A, B, C and D from the julia code and avoid building the linearized modelica model
-        include(omc.linearfile)
+        include(omc.linearization.linearfile)
         ## to be evaluated at runtime, as Julia expects all functions should be known at the compilation time so efficient assembly code can be generated.
         result = invokelatest(linearized_model)
         (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
-        omc.linearstates = stateVars
-        omc.linearinputs = inputVars
-        omc.linearoutputs = outputVars
+        omc.linearization.linearstates = stateVars
+        omc.linearization.linearinputs = inputVars
+        omc.linearization.linearoutputs = outputVars
         return [A, B, C, D]
     else
         errormsg = sendExpression(omc, "getErrorString()")
-        return println("Linearization failed: ","\"" , omc.linearfile,"\"" ," not found \n", errormsg)
+        cd(omc.currentdir)
+        error("\"$(omc.linearization.linearfile)\" not found \n$errormsg")
     end
     cd(omc.currentdir)
 end
 
 """
-standard getXXX() API
-function which returns the LinearizationOptions
+    getLinearizationOptions(omc, name=nothing)
+
+Return linearization options.
+
+## Arguments
+
+- `omc::OMCSession`:        OpenModelica compiler session.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`: Name(s) of linearization options.
+                                                                       If nothing is provided return all linearization options.
 """
-function getLinearizationOptions(omc, name=nothing)
-    if (name === nothing)
-        return omc.linearOptions
-    elseif (isa(name, String))
-        return get(omc.linearOptions, name, 0)
-    elseif (isa(name, Array))
-        return [get(omc.linearOptions, x, 0) for x in name]
+function getLinearizationOptions(omc::OMCSession,
+                                 name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing} = nothing)
+
+    if isnothing(name)
+        return omc.linearization.linearOptions
+    elseif isa(name, String)
+        return get(omc.linearization.linearOptions, name, 0)
+    elseif isa(name, Array)
+        return [get(omc.linearization.linearOptions, x, 0) for x in name]
     end
 end
 
 """
-standard getXXX() API
-function which returns the LinearInput variables after the model is linearized
+    getLinearInputs(omc)
+
+Return linear input variables after the model is linearized
+
+## Arguments
+
+- `omc::OMCSession`: OpenModelica compiler session.
 """
-function getLinearInputs(omc)
-    if (omc.linearFlag == true)
-        return omc.linearinputs
+function getLinearInputs(omc::OMCSession)
+    if omc.linearization.linearFlag
+        return omc.linearization.linearinputs
+    else
+        error("Model is not linearized")
+    end
+end
+
+"""
+    getLinearOutputs(omc)
+
+Return linear output variables after the model is linearized
+
+## Arguments
+
+- `omc::OMCSession`: OpenModelica compiler session.
+"""
+function getLinearOutputs(omc::OMCSession)
+    if omc.linearization.linearFlag
+        return omc.linearization.linearoutputs
     else
         println("Model is not Linearized")
     end
 end
 
 """
-standard getXXX() API
-function which returns the LinearOutput variables after the model is linearized
+    getLinearStates(omc)
+
+Return linear state variables after the model is linearized
+
+## Arguments
+
+- `omc::OMCSession`: OpenModelica compiler session.
 """
-function getLinearOutputs(omc)
-    if (omc.linearFlag == true)
-        return omc.linearoutputs
+function getLinearStates(omc::OMCSession)
+    if omc.linearization.linearFlag
+        return omc.linearization.linearstates
     else
         println("Model is not Linearized")
     end
 end
 
 """
-standard getXXX() API
-function which returns the LinearStates variables after the model is linearized
-"""
-function getLinearStates(omc)
-    if (omc.linearFlag == true)
-        return omc.linearstates
-    else
-        println("Model is not Linearized")
-    end
-end
+    setLinearizationOptions(omc, name)
+
+Set linearization options.
+
+## Arguments
+
+- `omc::OMCSession`:        OpenModelica compiler session.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}}`:  String \"Name=value\" or
+                                                               vector of strings [\"Name1=value1\",\"Name2=value2\",\"Name3=value3\"])
 
 """
-standard setXXX() API
-function which sets the LinearizationOption values defined by users
-"""
-function setLinearizationOptions(omc, name)
-    if (isa(name, String))
+function setLinearizationOptions(omc::OMCSession, name)
+    if isa(name, String)
         name = strip_space(name)
         value = split(name, "=")
-        if (haskey(omc.linearOptions, value[1]))
-            omc.linearOptions[value[1]] = value[2]
+        if haskey(omc.linearization.linearOptions, value[1])
+            omc.linearization.linearOptions[value[1]] = value[2]
         else
-            return println(value[1], "  is not a LinearizationOption")
+            error("\"$(value[1])\" is not a linearization option")
         end
-    elseif (isa(name, Array))
+    elseif isa(name, Array)
         name = strip_space(name)
         for var in name
             value = split(var, "=")
-            if (haskey(omc.linearOptions, value[1]))
-                omc.linearOptions[value[1]] = value[2]
+            if haskey(omc.linearization.linearOptions, value[1])
+                omc.linearization.linearOptions[value[1]] = value[2]
             else
-                return println(value[1], "  is not a LinearizationOption")
+                error("\"$(value[1])\" is not a linearization option")
             end
         end
     end

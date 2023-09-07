@@ -72,14 +72,14 @@ OMJulia.sendExpression(omc, "getVersion()")
 ```
 """
 function sendExpression(omc::OMCSession, expr::String; parsed=true)
-    if (!process_running(omc.omcprocess))
+    if !process_running(omc.zmqSession.omcprocess)
         return error("Process Exited, No connection with OMC. Create a new instance of OMCSession")
     end
 
     @debug "sending expression: $(expr)"
-    ZMQ.Sockets.send(omc.socket, expr)
+    ZMQ.Sockets.send(omc.zmqSession.socket, expr)
     @debug "Receiving message from ZMQ socket"
-    message = ZMQ.Sockets.recv(omc.socket)
+    message = ZMQ.Sockets.recv(omc.zmqSession.socket)
     @debug "Recieved message"
     if parsed
         return Parser.parseOM(unsafe_string(message))

@@ -55,11 +55,12 @@ plt = plot(df,
            x=:time, y=:h,
            mode="lines",
            Layout(title="Bouncing Ball", height = 700))
+
+OMJulia.quit(mod)
 ```
 
 ```@example ModelicaSystem-example
 PlotlyDocumenter.to_documenter(plt) # hide
-OMJulia.quit(mod) # hide
 ```
 
 ## Scripting API with sendExpression

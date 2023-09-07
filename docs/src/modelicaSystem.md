@@ -1,5 +1,6 @@
 # Advanced API
 
+A Julia style scripting API that handles low level API calls.
 ## ModelicaSystem
 
 ```@docs
@@ -11,7 +12,9 @@ OMJulia.OMCSession
 OMJulia.quit
 ```
 
-Let us see the usage of ModelicaSystem with the help of Modelica model `ModSeborgCSTRorg`
+### Example 
+Let us see the usage of [`ModelicaSystem`](@ref) with the help of Modelica model
+`ModSeborgCSTRorg`
 
 ```modelica
 model ModSeborgCSTRorg
@@ -59,7 +62,7 @@ equation
   y_T = T;
 end ModSeborgCSTRorg
 ```
-### Example
+
 ```@repl ModSeborgCSTRorg-example
 using OMJulia
 mod = OMJulia.OMCSession()
@@ -73,13 +76,14 @@ ModelicaSystem(mod,
 
 ## WorkDirectory
 
-For each OMJulia session a temporary work directory is created and the results are
-published in that working directory.
+For each [`OMJulia.OMCSession`](@ref) session a temporary work directory is created and
+the results are published in that working directory.
 In order to get the work directory use [`getWorkDirectory`](@ref).
 
 ```@docs
 getWorkDirectory
 ```
+
 ```@repl ModSeborgCSTRorg-example
 getWorkDirectory(mod)
 ```
@@ -112,12 +116,7 @@ getSimulationOptions
 getSolutions
 ```
 
-Three calling possibilities are accepted using getXXX() where "XXX" can be any of the above functions (eg:) getParameters().
-1. getXXX() without input argument, returns a dictionary with names as keys and values as values.
-2. getXXX(S), where S is a string of names.
-3. getXXX(["S1","S2"]) where S1 and S1 are array of string elements
-
-### Examples of using Get Methods
+### Examples
 
 ```@repl ModSeborgCSTRorg-example
 getQuantities(mod)
@@ -146,6 +145,7 @@ getSimulationOptions(mod)
 getSimulationOptions(mod, ["stepSize","tolerance"])
 ```
 ### Reading Simulation Results
+
 To read the simulation results, we need to simulate the model first and use the getSolution() API to read the results
 
 ```@repl ModSeborgCSTRorg-example
@@ -175,10 +175,6 @@ setInputs
 setParameters
 setSimulationOptions
 ```
-
-Two setting possibilities are accepted using setXXXs(),where "XXX" can be any of above functions.
-1.setXXX("Name=value") string of keyword assignments
-2.setXXX(["Name1=value1","Name2=value2","Name3=value3"]) array of string of keyword assignments
 
 ### Examples
 
