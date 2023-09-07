@@ -12,7 +12,7 @@ OMJulia.OMCSession
 OMJulia.quit
 ```
 
-### Example 
+### Example
 Let us see the usage of [`ModelicaSystem`](@ref) with the help of Modelica model
 `ModSeborgCSTRorg`
 
