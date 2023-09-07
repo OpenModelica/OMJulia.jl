@@ -293,7 +293,7 @@ Return list of all variables parsed from xml file.
 ## Arguments
 
 - `omc::OMCSession`:        OpenModelica compiler session.
-- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`: Name(s) of variables to read from xml file.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`: Names of variables to read from xml file.
                                                                        If nothing is provided read all variables.
 
 See also [`showQuantities`](@ref).
@@ -328,7 +328,7 @@ Return `DataFrame` of all variables parsed from xml file.
 ## Arguments
 
 - `omc::OMCSession`:        OpenModelica compiler session.
-- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:     Name(s) of variables to read from xml file.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:     Names of variables to read from xml file.
                                                                        If nothing is provided read all variables.
 
 See also [`getQuantities`](@ref).
@@ -367,7 +367,7 @@ Return parameter variables parsed from xml file.
 ## Arguments
 
 - `omc::OMCSession`:        OpenModelica compiler session.
-- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:     Name(s) of parameters to read from xml file.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:     Names of parameters to read from xml file.
                                                                        If nothing is provided read all parameters.
 """
 function getParameters(omc::OMCSession, name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing} = nothing)
@@ -388,7 +388,7 @@ Return SimulationOption variables parsed from xml file.
 ## Arguments
 
 - `omc::OMCSession`:        OpenModelica compiler session.
-- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:     Name(s) of parameters to read from xml file.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:     Names of parameters to read from xml file.
                                                                        If nothing is provided read all parameters.
 """
 function getSimulationOptions(omc::OMCSession, name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing} = nothing)
@@ -409,7 +409,7 @@ Return continuous variables parsed from xml file.
 ## Arguments
 
 - `omc::OMCSession`:        OpenModelica compiler session.
-- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:  Name(s) of continuous variables to read from xml file.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:  Names of continuous variables to read from xml file.
                                                                         If nothing is provided read all continuous variables.
 """
 function getContinuous(omc::OMCSession, name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing} = nothing)
@@ -471,7 +471,7 @@ If input variables have no start value the returned value is `\"None\"`.
 ## Arguments
 
 - `omc::OMCSession`:        OpenModelica compiler session.
-- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:     Name(s) of input variables to read from xml file.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:     Names of input variables to read from xml file.
                                                                        If nothing is provided read all input variables.
 """
 function getInputs(omc::OMCSession, name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing} = nothing)
@@ -493,7 +493,7 @@ If output variables have no start value the returned value is `\"None\"`.
 ## Arguments
 
 - `omc::OMCSession`:        OpenModelica compiler session.
-- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:  Name(s) of output variables to read from xml file.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:  Names of output variables to read from xml file.
                                                                         If nothing is provided read all output variables.
 """
 function getOutputs(omc::OMCSession, name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}=nothing)
@@ -752,7 +752,7 @@ Read result file and return simulation results
 ## Arguments
 
 - `omc::OMCSession`:        OpenModelica compiler session.
-- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:  Name(s) of variables to read from result file.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:  Names of variables to read from result file.
                                                                         If nothing is provided read all variables.
 
 ## Keyword Arguments
@@ -1207,7 +1207,7 @@ Return linearization options.
 ## Arguments
 
 - `omc::OMCSession`:        OpenModelica compiler session.
-- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`: Name(s) of linearization options.
+- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`: Names of linearization options.
                                                                        If nothing is provided return all linearization options.
 """
 function getLinearizationOptions(omc::OMCSession,
