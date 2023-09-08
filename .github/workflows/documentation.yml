@@ -28,6 +28,8 @@ jobs:
           version: 'nightly'
           packages: |
             'omc'
+          libraries: |
+            'Modelica 4.0.0'
 
       - name: Setup Julia
         uses: julia-actions/setup-julia@v1
