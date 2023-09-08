@@ -8,7 +8,7 @@ on:
   pull_request:
 
 jobs:
-  build:
+  documentation:
     permissions:
       contents: write
     runs-on: ubuntu-latest
