@@ -53,7 +53,9 @@ import OMJulia
     vars = OMJulia.API.readSimulationResultVars(omc, resultfile)
     @test var = "h" in vars
 
-    # simres = OMJulia.API.readSimulationResult(omc, resultfile, ["h"])
-    # @test (simres[1][1]) = 1.0
+    simres = OMJulia.API.readSimulationResult(omc, resultfile, ["h"])
+    @test simres[1][1] == 1.0
+
+
     OMJulia.quit(omc)
 end
