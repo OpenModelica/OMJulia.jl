@@ -184,7 +184,6 @@ module API
         )
 
         exp = join(["cd", "(", "newWorkingDirectory", "=", modelicaString(newWorkingDirectory),")"])
-        println(exp)
         return sendExpression(omc, exp)
     end
 
