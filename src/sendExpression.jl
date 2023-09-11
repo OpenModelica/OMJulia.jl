@@ -49,8 +49,8 @@ for a complete list of all functions.
     ```
 
 !!! warn
-    On Windows path separation symbol `\\` needs to be escaped and doubled  `\\\\` to
-    prevent warnings.
+    On Windows path separation symbol `\\` needs to be escaped `\\\\`
+    or replaced to Unix style path `/` to prevent warnings.
 
     ```modelica
     loadFile("C:\\\\path\\\\to\\\\M.mo")
