@@ -56,6 +56,12 @@ import OMJulia
     simres = OMJulia.API.readSimulationResult(omc, resultfile, ["h"])
     @test simres[1][1] == 1.0
 
+    fmu = joinpath(workdir, "BouncingBall.fmu")
+    OMJulia.API.buildModelFMU(omc, "BouncingBall")
+    @test isfile(fmu)
+
+    result3 = OMJulia.API.setCommandLineOptions(omc, "--generateSymbolicLinearization")
+    @test result3 == true
 
     OMJulia.quit(omc)
 end
