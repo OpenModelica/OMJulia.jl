@@ -26,31 +26,42 @@ EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
 CONDITIONS OF OSMC-PL.
 =#
 
-module OMJulia
-    global IS_FILE_OMJULIA = false
+using Test
+import OMJulia
 
-    using DataFrames
-    using DataStructures
-    using LightXML
-    using Random
-    using ZMQ
+@testset "API" begin
+    workdir = abspath(joinpath(@__DIR__, "test-API"))
+    rm(workdir, recursive=true, force=true)
+    mkpath(workdir)
+    if Sys.iswindows()
+        workdir = replace(workdir, "\\" => "/")
+    end
 
-    export sendExpression, ModelicaSystem
-    # getMethods
-    export getParameters, getQuantities, showQuantities, getInputs, getOutputs, getSimulationOptions, getSolutions, getContinuous, getWorkDirectory
-    # setMethods
-    export setInputs, setParameters, setSimulationOptions
-    # simulation
-    export simulate, buildModel
-    # Linearizion
-    export linearize, getLinearInputs, getLinearOutputs, getLinearStates, getLinearizationOptions, setLinearizationOptions
-    # sensitivity analysis
-    export sensitivity
+    omc = OMJulia.OMCSession()
+    result1 = OMJulia.API.loadFile(omc, "../docs/testmodels/BouncingBall.mo")
+    @test result1 == true
+    dir = OMJulia.API.cd(omc, workdir)
+    result2 = OMJulia.API.buildModel(omc, "BouncingBall")
+    @test result2[2] == "BouncingBall_init.xml"
+    result2 = OMJulia.API.buildModel(omc, "BouncingBall")
+    @test result2[2] == "BouncingBall_init.xml"
+    resultfile = joinpath(workdir, "BouncingBall_res.mat")
 
-    include("error.jl")
-    include("parser.jl")
-    include("omcSession.jl")
-    include("sendExpression.jl")
-    include("modelicaSystem.jl")
-    include("api.jl")
+    OMJulia.API.simulate(omc, "BouncingBall")
+    @test isfile(resultfile)
+
+    vars = OMJulia.API.readSimulationResultVars(omc, resultfile)
+    @test var = "h" in vars
+
+    simres = OMJulia.API.readSimulationResult(omc, resultfile, ["h"])
+    @test simres[1][1] == 1.0
+
+    fmu = joinpath(workdir, "BouncingBall.fmu")
+    OMJulia.API.buildModelFMU(omc, "BouncingBall")
+    @test isfile(fmu)
+
+    result3 = OMJulia.API.setCommandLineOptions(omc, "--generateSymbolicLinearization")
+    @test result3 == true
+
+    OMJulia.quit(omc)
 end
