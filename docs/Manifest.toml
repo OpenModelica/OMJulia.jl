@@ -368,7 +368,7 @@ version = "1.2.0"
 deps = ["DataFrames", "DataStructures", "LightXML", "Random", "ZMQ"]
 path = ".."
 uuid = "0f4fe800-344e-11e9-2949-fb537ad918e1"
-version = "0.2.1"
+version = "0.2.2"
 
 [[deps.Observables]]
 git-tree-sha1 = "6862738f9796b3edc1c09d0890afce4eca9e7e93"

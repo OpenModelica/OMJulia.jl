@@ -1,13 +1,14 @@
 # Quickstart
 
-## ModelicaSystem
+There are two basic ways to interact with OpenModelica:
 
-To simulate Modelica model `BouncingBall` start a new [`OMJulia.OMCSession`](@ref) and create a
-new [`ModelicaSystem`](@ref) to build the BouncingBall model.
+  - [ModelicaSystem](@ref modelicasystem): A Julia style scripting API that handles low level
+    API calls.
+  - [Scripting API with sendExpression](@ref scripting-api-with-sendExpression):
+    Send expressions to the low level OpenModelica scripting API.
 
-!!! info
-    The BouncingBall.mo file can be found in your OpenModelica installation directory in
-    `<OpenModelcia>/share/doc/omc/testmodels/BouncingBall.mo`
+The following examples demonstrate how to simulate Modelica model `BouncingBall` in both
+ways.
 
 ```modelica
 model BouncingBall
@@ -19,7 +20,6 @@ model BouncingBall
   Boolean impact;
   Real v_new(fixed=true);
   Integer foo;
-
 equation
   impact = h <= 0.0;
   foo = if impact then 1 else 2;
@@ -31,18 +31,31 @@ equation
     flying = v_new > 0;
     reinit(v, v_new);
   end when;
-
 end BouncingBall;
 ```
+
+!!! info
+    The BouncingBall.mo file can be found in your OpenModelica installation directory in
+    `<OpenModelcia>/share/doc/omc/testmodels/BouncingBall.mo`.
+
+## [ModelicaSystem](@id modelicasystem)
+
+Start a new [`OMJulia.OMCSession`](@ref) and create a new [`ModelicaSystem`](@ref) to
+build and simulate the `BouncingBall` model.
+Afterwards the result can be plotted in Julia.
 
 ```@repl ModelicaSystem-example
 using OMJulia
 using CSV, DataFrames, PlotlyJS
 using PlotlyDocumenter # hide
 
-mod = OMJulia.OMCSession()
+mod = OMJulia.OMCSession();
+
+installDir = sendExpression(mod, "getInstallationDirectoryPath()")
+bouncingBallFile = joinpath(installDir, "share", "doc", "omc", "testmodels", "BouncingBall.mo")
+
 ModelicaSystem(mod,
-               joinpath("docs", "testmodels", "BouncingBall.mo"),
+               bouncingBallFile,
                "BouncingBall")
 simulate(mod,
          resultfile = "BouncingBall_ref.csv",
@@ -63,21 +76,44 @@ OMJulia.quit(mod)
 PlotlyDocumenter.to_documenter(plt) # hide
 ```
 
-## Scripting API with sendExpression
+## [Scripting API with sendExpression](@id scripting-api-with-sendExpression)
 
 Start a new [`OMJulia.OMCSession`](@ref) and send
 [scripting API](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html)
 expressions to the omc session with [`sendExpression()`](@ref).
 
-```@repl
+!!! warn
+    All special characters inside a string argument for an API function need to be escaped
+    when passing to `sendExpression`.
+
+    E.g. MOS command
+    ```modelica
+    loadFile("/some/path/to/BouncingBall.mo");
+    ```
+    becomes Julia code
+    ```julia
+    sendExpression(omc, "loadFile(\"/some/path/to/BouncingBall.mo\")")
+    ```
+
+!!! info
+    On Windows path separation symbol `\` needs to be escaped `\\`
+    or replaced to Unix style path  `/` to prevent warnings.
+
+
+```@repl ModelicaSystem-example
 using OMJulia
 
-omc = OMJulia.OMCSession()
-sendExpression(omc, "loadModel(Modelica)")
+omc = OMJulia.OMCSession();
 omcWorkDoir = mkpath(joinpath("docs", "omc-temp"))  # hide
 mkpath(omcWorkDoir)                                 # hide
 sendExpression(omc, "cd(\"$(omcWorkDoir)\")")       # hide
-sendExpression(omc, "model a Real s; equation s=sin(10*time); end a;")
-sendExpression(omc, "simulate(a)")
+installDir = sendExpression(omc, "getInstallationDirectoryPath()")
+bouncingBallFile = joinpath(installDir, "share", "doc", "omc", "testmodels", "BouncingBall.mo")
+bouncingBallFile = abspath(bouncingBallFile)        # hide
+if Sys.iswindows()
+    bouncingBallFile = replace(bouncingBallFile, "\\" => "/")
+end
+sendExpression(omc, "loadFile(\"$(bouncingBallFile)\")")
+sendExpression(omc, "simulate(BouncingBall)")
 OMJulia.quit(omc)
 ```
