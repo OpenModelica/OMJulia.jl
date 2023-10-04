@@ -38,8 +38,12 @@ import OMJulia
     end
 
     omc = OMJulia.OMCSession()
-    result1 = OMJulia.API.loadFile(omc, "../docs/testmodels/BouncingBall.mo")
-    @test result1 == true
+    @test OMJulia.API.loadFile(omc, "../docs/testmodels/BouncingBall.mo")
+
+    # Enter non-existing directory
+    @test_throws OMJulia.ScriptingError
+ OMJulia.API.cd(omc, "this/is/not/a/valid/directory/I/hope/otherwise/our/test/does/some/wild/stuff")
+
     dir = OMJulia.API.cd(omc, workdir)
     result2 = OMJulia.API.buildModel(omc, "BouncingBall")
     @test result2[2] == "BouncingBall_init.xml"
