@@ -26,11 +26,13 @@ EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
 CONDITIONS OF OSMC-PL.
 =#
 
+# The functions below are generated using the autoGenerate.jl located
+# in scripts folder, the generated code is 95 % accurate, and we need to
+# do some fixes manually for certain API's, but in future this could be improved
+# and completely use the autoGenerate.jl to get 100% correct generated codes
+
 """
-The functions below are generated using the autoGenerate.jl located
-in scripts folder, the generated code is 95 % accurate, and we need to
-do some fixes manually for certain API's, but in future this could be improved
-and completely use the autoGenerate.jl to get 100% correct generated codes
+
 """
 module API
 
@@ -93,9 +95,14 @@ module API
     end
 
     """
-        loadFile(omc, fileName; encoding = "", uses = true, notify = true, requireExactVersion = false)
+        loadFile(omc, fileName;
+                 encoding = "",
+                 uses = true,
+                 notify = true,
+                 requireExactVersion = false)
 
     Load file `fileName` (*.mo) and merge it with the loaded AST.
+    See [OpenModelica scripting API `loadFile`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#loadfile).
     """
     function loadFile(omc,
         fileName::String;
@@ -114,6 +121,17 @@ module API
         return success
     end
 
+    """
+        loadModel(omc, className;
+                  priorityVersion = String[],
+                  notify = false,
+                  languageStandard = "",
+                  requireExactVersion = false)
+
+    Loads a Modelica library.
+
+    See [OpenModelica scripting API `loadModel`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#loadmodel).
+    """
     function loadModel(omc,
         className::String;
         priorityVersion::Vector{String} = String[],
@@ -127,11 +145,21 @@ module API
 
     """
         simulate(omc, className;
-                startTime = 0.0, stopTime = nothing, numberOfIntervals = 500, tolerance = 1e-6,
-                method = "", fileNamePrefix=className, options = "", outputFormat = "mat",
-                variableFilter = ".*", cflags = "", simflags = "")
+                startTime = 0.0,
+                stopTime = nothing,
+                numberOfIntervals = 500,
+                tolerance = 1e-6,
+                method = "",
+                fileNamePrefix=className,
+                options = "",
+                outputFormat = "mat",
+                variableFilter = ".*",
+                cflags = "",
+                simflags = "")
 
     Simulates a modelica model by generating C code, build it and run the simulation executable.
+
+    See [OpenModelica scripting API `simulate`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#simulate).
     """
     function simulate(omc,
         className::String;
@@ -175,6 +203,25 @@ module API
         return simulationResults
     end
 
+    """
+        buildModel(omc, className;
+                   startTime = 0.0,
+                   stopTime = 1.0,
+                   numberOfIntervals = 500,
+                   tolerance = 1e-6,
+                   method = "",
+                   fileNamePrefix = className,
+                   options = "",
+                   outputFormat = "mat",
+                   variableFilter = ".*",
+                   cflags = "",
+                   simflags = "")
+
+    Build Modelica model by generating C code and compiling it into an executable simulation.
+    It does not run the simulation!
+
+    See [OpenModelica scripting API `buildModel`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#buildmodel).
+    """
     function buildModel(omc,
         className::String;
         startTime::Float64 = 0.0,
@@ -194,6 +241,20 @@ module API
         return OMJulia.sendExpression(omc, exp)
     end
 
+    """
+        getClassNames(omc;
+                      class_ = "",
+                      recursive = false,
+                      qualified = false,
+                      sort = false,
+                      builtin = false,
+                      showProtected = false,
+                      includeConstants = false)
+
+    Returns the list of class names defined in the class.
+
+    See [OpenModelica scripting API `getClassNames`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#getclassnames).
+    """
     function getClassNames(omc;
                            class_::String = "",
                            recursive::Bool = false,
@@ -209,7 +270,7 @@ module API
             args = join(["class_", "=", class_, ", ", "recursive", "=", recursive, ", ", "qualified", "=", qualified, ", ", "sort", "=", sort, ", ", "builtin", "=", builtin, ", ", "showProtected", "=", showProtected, ", ", "includeConstants", "=", includeConstants])
         end
 
-        exp = "getClassNames(" * args * ")"
+        exp = "getClassNames($args)"
 
         try
             return OMJulia.sendExpression(omc, exp)
@@ -218,6 +279,15 @@ module API
         end
     end
 
+    """
+        readSimulationResult(omc, filename,
+                             variables = String[],
+                             size = 0)
+
+    Reads a result file, returning a matrix corresponding to the variables and size given.
+
+    See [OpenModelica scripting API `readSimulationResult`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#readsimulationresult).
+    """
     function readSimulationResult(omc,
         filename::String,
         variables::Vector{String} = String[],
@@ -228,14 +298,30 @@ module API
         return OMJulia.sendExpression(omc, exp)
     end
 
+    """
+        readSimulationResultSize(omc, fileName)
+
+    The number of intervals that are present in the output file.
+
+    See [OpenModelica scripting API `readSimulationResultSize`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#readsimulationresultsize).
+    """
     function readSimulationResultSize(omc,
-        fileName::String;
+        fileName::String
         )
 
         exp = join(["readSimulationResultSize", "(", "fileName", "=", modelicaString(fileName),")"])
         return OMJulia.sendExpression(omc, exp)
     end
 
+    """
+    readSimulationResultVars(omc, fileName;
+                             readParameters = true,
+                             openmodelicaStyle = false)
+
+    Returns the variables in the simulation file; you can use val() and plot() commands using these names.
+
+    See [OpenModelica scripting API `readSimulationResultVars`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#readsimulationresultvars).
+    """
     function readSimulationResultVars(omc,
         fileName::String;
         readParameters::Bool = true,
@@ -246,6 +332,16 @@ module API
         return OMJulia.sendExpression(omc, exp)
     end
 
+    """
+            closeSimulationResultFile(omc)
+
+    Closes the current simulation result file.
+    Only needed by Windows. Windows cannot handle reading and writing to the same file from different processes.
+    To allow OMEdit to make successful simulation again on the same file we must close the file after reading the Simulation Result Variables.
+    Even OMEdit only use this API for Windows.
+
+    See [OpenModelica scripting API `closeSimulationResultFile`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#closesimulationresultfile).
+    """
     function closeSimulationResultFile(omc)
         return OMJulia.sendExpression(omc, "closeSimulationResultFile()")
     end
@@ -254,6 +350,8 @@ module API
         setCommandLineOptions(omc, option)
 
     The input is a regular command-line flag given to OMC, e.g. -d=failtrace or -g=MetaModelica.
+
+    See [OpenModelica scripting API `setCommandLineOptions`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#setcommandlineoptions).
     """
     function setCommandLineOptions(omc,
         option::String
@@ -273,6 +371,8 @@ module API
     Change directory to the given path `newWorkingDirectory` (which may be either relative or absolute).
     Returns the new working directory on success or a message on failure.
     If the given path is the empty string, the function simply returns the current working directory.
+
+    See [OpenModelica scripting API `cd`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#cd).
     """
     function cd(omc,
         newWorkingDirectory::String = "";
@@ -287,6 +387,11 @@ module API
         return workingDirectory
     end
 
+    """
+    Creates a model with symbolic linearization matrices.
+
+    See [OpenModelica scripting API `linearize`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#linearize).
+    """
     function linearize(omc,
         className::String;
         startTime::Float64 = 0.0,
@@ -308,10 +413,17 @@ module API
     end
 
     """
-        buildModelFMU(omc, className; version = "2.0", fmuType = "me", fileNamePrefix=className, platforms=["static"], includeResources = false)
+        buildModelFMU(omc, className;
+                      version = "2.0",
+                      fmuType = "me",
+                      fileNamePrefix=className,
+                      platforms=["static"],
+                      includeResources = false)
 
     Translates a modelica model into a Functional Mockup Unit.
     The only required argument is the className, while all others have some default values.
+
+    See [OpenModelica scripting API `buildModelFMU`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#buildmodelfmu).
     """
     function buildModelFMU(omc,
         className::String;
@@ -335,6 +447,8 @@ module API
         getErrorString(omc, warningsAsErrors = false)
 
     Returns the current error message.
+
+    See [OpenModelica scripting API `getErrorString`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#geterrorstring).
     """
     function getErrorString(omc;
         warningsAsErrors::Bool = false
@@ -348,9 +462,23 @@ module API
         getVersion(omc)
 
     Returns the version of the Modelica compiler.
+
+    See [OpenModelica scripting API `getVersion`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#getversion).
     """
     function getVersion(omc)
         exp = join(["getVersion()"])
+        return OMJulia.sendExpression(omc, exp)
+    end
+
+    """
+        getInstallationDirectoryPath(omc)
+
+    This returns `OPENMODELICAHOME` if it is set; on some platforms the default path is returned if it is not set.
+
+    See [OpenModelica scripting API `getInstallationDirectoryPath`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#getinstallationdirectorypath).
+    """
+    function getInstallationDirectoryPath(omc)
+        exp = join(["getInstallationDirectoryPath()"])
         return OMJulia.sendExpression(omc, exp)
     end
 end

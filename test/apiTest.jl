@@ -67,5 +67,8 @@ import OMJulia
     result3 = OMJulia.API.setCommandLineOptions(omc, "--generateSymbolicLinearization")
     @test result3 == true
 
+    classNames = OMJulia.API.getClassNames()
+    @test classNames == [:BouncingBall]
+
     OMJulia.quit(omc)
 end

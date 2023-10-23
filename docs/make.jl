@@ -11,6 +11,7 @@ makedocs(
     "Home" => "index.md",
     "Quickstart" => "quickstart.md",
     "ModelicaSystem" => "modelicaSystem.md",
+    "OMJulia.API" => "api.md",
     "sendExpression" => "sendExpression.md"
   ],
   modules = [OMJulia],
