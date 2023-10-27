@@ -43,5 +43,7 @@ import OMJulia
     OMJulia.simulate(mod,
                      resultfile = resultfile)
     @test isfile(resultfile)
+    fmu = OMJulia.convertMo2FMU(mod)
+    @test isfile(fmu)
     OMJulia.quit(mod)
 end

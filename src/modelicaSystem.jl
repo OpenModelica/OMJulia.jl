@@ -650,28 +650,60 @@ function simulate(omc::OMCSession;
 end
 
 """
-function which converts modelicamodel to FMU
+function which converts modelica model to FMU
+
+    convertMo2FMU(omc; version::String = "2.0", fmuType::String = "me_cs", fileNamePrefix::String = "<default>", includeResources::Bool = true)
+
+## Arguments
+
+- `omc::OMCSession`:        OpenModelica compiler session, see `OMCSession()`.
+
+## Keyword Arguments
+
+- `version::String`: version 1.0 or 2.0
+- `fmuType::String`: FMU type, me (model exchange), cs (co-simulation), me_cs (both model exchange and co-simulation)"
+- `fileNamePrefix::String`: modelname will be used as default.
+
+## Examples
+
+```julia
+convertMo2FMU(omc)
+```
 """
-function convertMo2FMU(omc)
-    if !isempty(omc.modelname)
-        fmuexpression = join(["translateModelFMU(",omc.modelname,")"])
-        sendExpression(omc, fmuexpression)
-    else
-        println(sendExpression(omc, "getErrorString()"))
+function convertMo2FMU(omc; version::String = "2.0", fmuType::String = "me_cs", fileNamePrefix::String = "<default>", includeResources::Bool = true)
+
+    if fileNamePrefix == "<default>"
+        fileNamePrefix = omc.modelname
     end
+
+    exp = join(["buildModelFMU(", omc.modelname, ", version=", API.modelicaString(version), ", fmuType=", API.modelicaString(fmuType), ", fileNamePrefix=", API.modelicaString(fileNamePrefix), ", includeResources=", includeResources, ")"])
+
+    fmu = sendExpression(omc, exp)
+
+    if !isfile(fmu)
+        return println(sendExpression(omc, "getErrorString()"))
+    end
+
+    return fmu
 end
 
 """
 function which converts FMU to modelicamodel
 """
 function convertFmu2Mo(omc::OMCSession, fmupath)
-    fmupath = replace(abspath(fmupath), r"[/\\]+" => "/")
-    if isfile(fmupath)
-        result = sendExpression(omc, "importFMU(\"" * fmupath * "\")")
-        return joinpath(omc.tempdir, result)
-    else
-        println(fmupath, " ! Fmu not Found")
+    if !isfile(fmupath)
+        return println(fmupath, " does not exist")
     end
+
+    fmupath = replace(fmupath, r"[/\\]+" => "/")
+
+    filename = sendExpression(omc, "importFMU(\"" * fmupath * "\")")
+
+    if !isfile(filename)
+        return println(sendExpression(omc, "getErrorString()"))
+    end
+
+    return filename
 end
 
 """
