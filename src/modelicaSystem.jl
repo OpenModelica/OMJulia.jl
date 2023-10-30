@@ -76,13 +76,7 @@ function ModelicaSystem(omc::OMCSession,
                         variableFilter::Union{<:AbstractString, Nothing} = nothing)
 
     ## check for commandLineOptions
-    if !isnothing(commandLineOptions)
-        exp = join(["setCommandLineOptions(","","\"",commandLineOptions,"\"" ,")"])
-        cmdexp = sendExpression(omc, exp)
-        if !cmdexp
-            error(sendExpression(omc, "getErrorString()"))
-        end
-    end
+    setCommandLineOptions(omc, commandLineOptions)
 
     ## set default command Line Options for linearization as
     ## linearize() will use the simulation executable and runtime
@@ -93,6 +87,95 @@ function ModelicaSystem(omc::OMCSession,
     omc.filepath = filename
     omc.modelname = modelname
     omc.variableFilter = variableFilter
+
+    #loadFile and set temporary directory
+    loadFile(omc, filename)
+
+    #set temp directory for each modelica session
+    setTempDirectory(omc)
+
+    #load Libraries provided by users
+    loadLibrary(omc, library)
+
+    # build the model
+    buildModel(omc)
+end
+
+
+"""
+    ModelicaSystem(omc; modelname, library=nothing,
+                   commandLineOptions=nothing, variableFilter=nothing)
+
+Set command line options for OMCSession and build model `modelname` to prepare for a simulation.
+
+## Arguments
+
+- `omc`:       OpenModelica compiler session, see `OMCSession()`.
+
+## Keyword Arguments
+
+- `modelname`: Name of Modelica model to build, including namespace if the
+               model is wrappen within a Modelica package.
+- `library`:   List of dependent libraries or Modelica files.
+               This argument can be passed as string (e.g. `"Modelica"`)
+               or tuple (e.g. `("Modelica", "4.0")`
+               or array (e.g. ` ["Modelica", "SystemDynamics"]`
+               or `[("Modelica", "4.0"), "SystemDynamics"]`).
+
+- `commandLineOptions`: OpenModelica command line options, see
+                        [OpenModelica Compiler Flags](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html).
+- `variableFilter`:     Regex to filter variables in result file.
+
+## Usage
+
+```
+using OMJulia
+mod = OMJulia.OMCSession()
+ModelicaSystem(mod, modelname="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog", library="Modelica")
+```
+See also [`OMCSession()`](@ref).
+"""
+function ModelicaSystem(omc::OMCSession;
+    modelname::AbstractString,
+    library::Union{<:AbstractString,Tuple{<:AbstractString,<:AbstractString},Array{<:AbstractString},Array{Tuple{<:AbstractString,<:AbstractString}},Nothing}=nothing,
+    commandLineOptions::Union{<:AbstractString,Nothing}=nothing,
+    variableFilter::Union{<:AbstractString,Nothing}=nothing)
+
+    ## check for commandLineOptions
+    setCommandLineOptions(omc, commandLineOptions)
+
+    ## set default command Line Options for linearization as
+    ## linearize() will use the simulation executable and runtime
+    ## flag -l to perform linearization
+    sendExpression(omc, "setCommandLineOptions(\"--linearizationDumpLanguage=julia\")")
+    sendExpression(omc, "setCommandLineOptions(\"--generateSymbolicLinearization\")")
+
+    omc.modelname = modelname
+    omc.variableFilter = variableFilter
+
+    #set temp directory for each modelica session
+    setTempDirectory(omc)
+
+    #load Libraries provided by users
+    loadLibrary(omc, library)
+
+    # build the model
+    buildModel(omc)
+end
+
+
+function setCommandLineOptions(omc::OMCSession, commandLineOptions::Union{<:AbstractString,Nothing}=nothing)
+    ## check for commandLineOptions
+    if !isnothing(commandLineOptions)
+        exp = join(["setCommandLineOptions(", "", "\"", commandLineOptions, "\"", ")"])
+        cmdexp = sendExpression(omc, exp)
+        if !cmdexp
+            error(sendExpression(omc, "getErrorString()"))
+        end
+    end
+end
+
+function loadFile(omc::OMCSession, filename::AbstractString)
     filepath = replace(abspath(filename), r"[/\\]+" => "/")
     if isfile(filepath)
         loadmsg = sendExpression(omc, "loadFile(\"" * filepath * "\")")
@@ -102,12 +185,18 @@ function ModelicaSystem(omc::OMCSession,
     else
         error("\"$filename\" not found")
     end
+end
+
+function setTempDirectory(omc::OMCSession)
     omc.tempdir = replace(mktempdir(), r"[/\\]+" => "/")
     if !isdir(omc.tempdir)
         error("Failed to create temp directory \"$(omc.tempdir)\"")
     end
     sendExpression(omc, "cd(\"" * omc.tempdir * "\")")
-    # load Libraries provided by users
+end
+
+function loadLibrary(omc::OMCSession, library::Union{<:AbstractString, Tuple{<:AbstractString, <:AbstractString}, Array{<:AbstractString}, Array{Tuple{<:AbstractString, <:AbstractString}}, Nothing} = nothing)
+    #load Libraries provided by users
     if !isnothing(library)
         if isa(library, AbstractString)
             loadLibraryHelper(omc, library)
@@ -137,7 +226,6 @@ function ModelicaSystem(omc::OMCSession,
             error("Unknown type detected in input argument library[$i]. Is of type $(typeof(i))")
         end
     end
-    buildModel(omc)
 end
 
 """
@@ -674,6 +762,16 @@ function convertMo2FMU(omc; version::String = "2.0", fmuType::String = "me_cs", 
 
     if fileNamePrefix == "<default>"
         fileNamePrefix = omc.modelname
+    end
+
+    if length(fileNamePrefix) > 50
+        ## this approach will work only for MSL or fileNamePrefix seperated with . (e.g) Modelica.Electrical.Analog.Examples.CauerLowPassAnalog
+        fileNamePrefix = String(last(split(fileNamePrefix, ".")))
+    end
+
+    ## check again for the length if unable to reduce
+    if length(fileNamePrefix) > 50
+        return println("length of fileNamePrefix", fileNamePrefix,   "is too long ", length(fileNamePrefix), "fileNamePrefix prefix should be less than 50 characters")
     end
 
     exp = join(["buildModelFMU(", omc.modelname, ", version=", API.modelicaString(version), ", fmuType=", API.modelicaString(fmuType), ", fileNamePrefix=", API.modelicaString(fileNamePrefix), ", includeResources=", includeResources, ")"])
