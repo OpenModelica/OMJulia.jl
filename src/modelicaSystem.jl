@@ -27,16 +27,16 @@ CONDITIONS OF OSMC-PL.
 =#
 
 """
-    ModelicaSystem(omc, filename, modelname, library=nothing;
+    ModelicaSystem(omc, fileName, modelName, library=nothing;
                    commandLineOptions=nothing, variableFilter=nothing)
 
-Set command line options for OMCSession and build model `modelname` to prepare for a simulation.
+Set command line options for OMCSession and build model `modelName` to prepare for a simulation.
 
 ## Arguments
 
 - `omc`:       OpenModelica compiler session, see `OMCSession()`.
-- `filename`:  Path to Modelica file.
-- `modelname`: Name of Modelica model to build, including namespace if the
+- `fileName`:  Path to Modelica file.
+- `modelName`: Name of Modelica model to build, including namespace if the
                model is wrappen within a Modelica package.
 - `library`:   List of dependent libraries or Modelica files.
                This argument can be passed as string (e.g. `"Modelica"`)
@@ -69,8 +69,8 @@ ModelicaSystem(mod, "BouncingBall.mo", "BouncingBall", ["Modelica", "SystemDynam
 See also [`OMCSession()`](@ref).
 """
 function ModelicaSystem(omc::OMCSession,
-                        filename::AbstractString,
-                        modelname::AbstractString,
+                        fileName::AbstractString = nothing,
+                        modelName::AbstractString = nothing,
                         library::Union{<:AbstractString, Tuple{<:AbstractString, <:AbstractString}, Array{<:AbstractString}, Array{Tuple{<:AbstractString, <:AbstractString}}, Nothing} = nothing;
                         commandLineOptions::Union{<:AbstractString, Nothing} = nothing,
                         variableFilter::Union{<:AbstractString, Nothing} = nothing)
@@ -84,12 +84,12 @@ function ModelicaSystem(omc::OMCSession,
     sendExpression(omc, "setCommandLineOptions(\"--linearizationDumpLanguage=julia\")")
     sendExpression(omc, "setCommandLineOptions(\"--generateSymbolicLinearization\")")
 
-    omc.filepath = filename
-    omc.modelname = modelname
+    omc.filepath = fileName
+    omc.modelname = modelName
     omc.variableFilter = variableFilter
 
     #loadFile and set temporary directory
-    loadFile(omc, filename)
+    loadFile(omc, fileName)
 
     #set temp directory for each modelica session
     setTempDirectory(omc)
@@ -103,7 +103,7 @@ end
 
 
 """
-    ModelicaSystem(omc; modelname, library=nothing,
+    ModelicaSystem(omc; modelName, library=nothing,
                    commandLineOptions=nothing, variableFilter=nothing)
 
 Set command line options for OMCSession and build model `modelname` to prepare for a simulation.
@@ -114,7 +114,7 @@ Set command line options for OMCSession and build model `modelname` to prepare f
 
 ## Keyword Arguments
 
-- `modelname`: Name of Modelica model to build, including namespace if the
+- `modelName`: Name of Modelica model to build, including namespace if the
                model is wrappen within a Modelica package.
 - `library`:   List of dependent libraries or Modelica files.
                This argument can be passed as string (e.g. `"Modelica"`)
@@ -131,18 +131,18 @@ Set command line options for OMCSession and build model `modelname` to prepare f
 ```
 using OMJulia
 mod = OMJulia.OMCSession()
-ModelicaSystem(mod, modelname="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog", library="Modelica")
+ModelicaSystem(mod, modelName="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog", library="Modelica")
 ```
 See also [`OMCSession()`](@ref).
 """
 function ModelicaSystem(omc::OMCSession;
-    modelname::AbstractString=nothing,
+    modelName::AbstractString=nothing,
     library::Union{<:AbstractString,Tuple{<:AbstractString,<:AbstractString},Array{<:AbstractString},Array{Tuple{<:AbstractString,<:AbstractString}},Nothing}=nothing,
     commandLineOptions::Union{<:AbstractString,Nothing}=nothing,
     variableFilter::Union{<:AbstractString,Nothing}=nothing)
 
-    if isnothing(modelname)
-        return println("\"ModelicaSystem()\" constructor requires modelname")
+    if isnothing(modelName)
+        return println("\"ModelicaSystem()\" constructor requires modelName")
     end
 
     ## check for commandLineOptions
@@ -154,7 +154,7 @@ function ModelicaSystem(omc::OMCSession;
     sendExpression(omc, "setCommandLineOptions(\"--linearizationDumpLanguage=julia\")")
     sendExpression(omc, "setCommandLineOptions(\"--generateSymbolicLinearization\")")
 
-    omc.modelname = modelname
+    omc.modelname = modelName
     omc.variableFilter = variableFilter
 
     #set temp directory for each modelica session

@@ -35,11 +35,11 @@ import OMJulia
     mkpath(workdir)
 
     mod = OMJulia.OMCSession()
-    OMJulia.ModelicaSystem(mod, modelname="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog", library="Modelica")
+    OMJulia.ModelicaSystem(mod, modelName="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog", library="Modelica")
     fmu1 = OMJulia.convertMo2FMU(mod)
     @test isfile(fmu1)
 
-    OMJulia.ModelicaSystem(mod, modelname="Modelica.Fluid.Examples.DrumBoiler.DrumBoiler", library="Modelica")
+    OMJulia.ModelicaSystem(mod, modelName="Modelica.Fluid.Examples.DrumBoiler.DrumBoiler", library="Modelica")
     fmu2 = OMJulia.convertMo2FMU(mod)
     @test isfile(fmu2)
 
