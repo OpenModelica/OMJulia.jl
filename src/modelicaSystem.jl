@@ -136,10 +136,14 @@ ModelicaSystem(mod, modelname="Modelica.Electrical.Analog.Examples.CauerLowPassA
 See also [`OMCSession()`](@ref).
 """
 function ModelicaSystem(omc::OMCSession;
-    modelname::AbstractString,
+    modelname::AbstractString=nothing,
     library::Union{<:AbstractString,Tuple{<:AbstractString,<:AbstractString},Array{<:AbstractString},Array{Tuple{<:AbstractString,<:AbstractString}},Nothing}=nothing,
     commandLineOptions::Union{<:AbstractString,Nothing}=nothing,
     variableFilter::Union{<:AbstractString,Nothing}=nothing)
+
+    if isnothing(modelname)
+        return println("\"ModelicaSystem()\" constructor requires modelname")
+    end
 
     ## check for commandLineOptions
     setCommandLineOptions(omc, commandLineOptions)
