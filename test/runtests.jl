@@ -34,4 +34,5 @@ using Test
     @safetestset "OMCSession" begin include("omcTest.jl") end
     @safetestset "ModelicaSystem" begin include("modelicaSystemTest.jl") end
     @safetestset "API" begin include("apiTest.jl") end
+    @safetestset "Regression" begin include("regressionTests.jl"); runTests(libraries[1:1], models[1:2]; workdir=workdir) end
 end

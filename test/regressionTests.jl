@@ -26,7 +26,6 @@ EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
 CONDITIONS OF OSMC-PL.
 =#
 
-import Pkg; Pkg.activate(joinpath(@__DIR__))  # TODO: Remove
 using SafeTestsets
 using Test
 using DataFrames
@@ -52,7 +51,7 @@ end
 """
 Build a FMU for a single model, import the generated FMU, simulate it and compare to given reference results.
 """
-function testFmuExport(omc::OMJulia.OMCSession, className::String, referenceResult, recordValues)
+function testFmuExport(omc::OMJulia.OMCSession, className::String, referenceResult, recordValues; workdir::String)
   local fmuPath
   @info "\tFMU Export"
   @testset "Export" begin
@@ -65,11 +64,30 @@ function testFmuExport(omc::OMJulia.OMCSession, className::String, referenceResu
   @testset "Import" begin
     if isfile(fmuPath)
       fmu = FMI.fmiLoad(fmuPath)
-      results = FMI.fmiSimulate(fmu; recordValues = recordValues)
+      solution = FMI.fmiSimulate(fmu; recordValues = recordValues)
+
+      # Own implementation of CSV export, workaround for https://github.com/ThummeTo/FMI.jl/issues/198
+      df = DataFrames.DataFrame(time = solution.values.t)
+      for i in 1:length(solution.values.saveval[1])
+        for var in FMI.fmi2ValueReferenceToString(fmu, solution.valueReferences[i])
+          if in(var, recordValues)
+            df[!, Symbol(var)] = [val[i] for val in solution.values.saveval]
+          end
+        end
+      end
+      fmiResult = joinpath(workdir, "FMI_results.csv")
+      CSV.write(fmiResult, df)
+
+      #FMI.fmiSaveSolution(solution, "FMI_results.csv")
       @test true
     else
       @test false
     end
+  end
+
+  @info "\tCheck Results"
+  @testset "Verification" begin
+    @test (true, String[]) == OMJulia.API.diffSimulationResults(omc, "FMI_results.csv", referenceResult, "diff")
   end
 end
 
@@ -89,7 +107,7 @@ function testModels(omc::OMJulia.OMCSession, models::Vector{S}; libdir) where S<
       @testset verbose=false failfast=false "FMI" begin
         if isfile(resultFile)
           recordValues = names(CSV.read(resultFile, DataFrame))[2:end]
-          testFmuExport(omc, model, resultFile, recordValues)
+          testFmuExport(omc, model, resultFile, recordValues; workdir=modeldir)
         else
           @test false
         end
@@ -136,15 +154,11 @@ libraries = [
 models = [
   [
     "Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
-    "Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
     "Modelica.Fluid.Examples.DrumBoiler.DrumBoiler"
   ],
   [
-  "Buildings.Applications.DataCenters.ChillerCooled.Examples.IntegratedPrimaryLoadSideEconomizer"
+    "Buildings.Applications.DataCenters.ChillerCooled.Examples.IntegratedPrimaryLoadSideEconomizer"
   ]
 ]
 
-# Change working directory
 workdir = abspath(joinpath(@__DIR__, "test-regressionTests"))
-
-runTests(libraries[1:1], models[1:1]; workdir=workdir)
