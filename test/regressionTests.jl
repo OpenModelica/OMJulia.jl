@@ -26,7 +26,6 @@ EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
 CONDITIONS OF OSMC-PL.
 =#
 
-using SafeTestsets
 using Test
 using DataFrames
 using CSV
@@ -39,7 +38,7 @@ Simulate single model to generate a result file.
 """
 function testSimulation(omc::OMJulia.OMCSession, className::String)
   @info "\tSimulation"
-  @testset verbose=false failfast=false "Simulation" begin
+  @testset "Simulation" begin
     res = OMJulia.API.simulate(omc, className; outputFormat="csv")
     resultFile = res["resultFile"]
 
@@ -64,7 +63,7 @@ function testFmuExport(omc::OMJulia.OMCSession, className::String, referenceResu
   @testset "Import" begin
     if isfile(fmuPath)
       fmu = FMI.fmiLoad(fmuPath)
-      solution = FMI.fmiSimulate(fmu; recordValues = recordValues)
+      solution = FMI.fmiSimulate(fmu; recordValues = recordValues, showProgress=false)
 
       # Own implementation of CSV export, workaround for https://github.com/ThummeTo/FMI.jl/issues/198
       df = DataFrames.DataFrame(time = solution.values.t)
@@ -98,13 +97,13 @@ function testModels(omc::OMJulia.OMCSession, models::Vector{S}; libdir) where S<
   local resultFile
 
   for model in models
-    @testset verbose=false failfast=false "$model" begin
+    @testset "$model" begin
       modeldir = joinpath(libdir, model)
       mkpath(modeldir)
       @info "Testing $model"
       OMJulia.API.cd(omc, modeldir)
       resultFile = testSimulation(omc, model)
-      @testset verbose=false failfast=false "FMI" begin
+      @testset "FMI" begin
         if isfile(resultFile)
           recordValues = names(CSV.read(resultFile, DataFrame))[2:end]
           testFmuExport(omc, model, resultFile, recordValues; workdir=modeldir)
@@ -121,19 +120,18 @@ Run test for all libraries.
 """
 function runTests(libraries::Vector{Tuple{S,S}},
                   models::Vector{Vector{S}};
-                  workdir) where S<:AbstractString
+                  workdir=abspath(joinpath(@__DIR__, "test-regressionTests"))) where S<:AbstractString
 
   rm(workdir, recursive=true, force=true)
   mkpath(workdir)
 
-  @testset verbose=true failfast=false "OpenModelica" begin
+  @testset "OpenModelica" begin
     for (i, (library, version)) in enumerate(libraries)
-      @testset verbose = true failfast=false "$library" begin
+      @testset verbose=true "$library" begin
         libdir = joinpath(workdir, library)
         mkpath(libdir)
 
         omc = OMJulia.OMCSession()
-        v = OMJulia.API.getVersion(omc)
 
         @test OMJulia.API.loadModel(omc, library; priorityVersion = [version], requireExactVersion = true)
         testModels(omc, models[i]; libdir=libdir)
@@ -148,17 +146,20 @@ end
 
 libraries = [
   ("Modelica", "4.0.0")
-  ("Buildings", "10.0.0")
 ]
 
 models = [
   [
+    "Modelica.Blocks.Examples.Filter",
+    "Modelica.Blocks.Examples.RealNetwork1",
     "Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
-    "Modelica.Fluid.Examples.DrumBoiler.DrumBoiler"
-  ],
-  [
-    "Buildings.Applications.DataCenters.ChillerCooled.Examples.IntegratedPrimaryLoadSideEconomizer"
+    "Modelica.Electrical.Digital.Examples.FlipFlop",
+    "Modelica.Mechanics.Rotational.Examples.FirstGrounded",
+    "Modelica.Mechanics.Rotational.Examples.CoupledClutches",
+    "Modelica.Mechanics.MultiBody.Examples.Elementary.DoublePendulum",
+    "Modelica.Mechanics.MultiBody.Examples.Elementary.FreeBody",
+    "Modelica.Fluid.Examples.PumpingSystem",
+    "Modelica.Fluid.Examples.TraceSubstances.RoomCO2WithControls",
+    "Modelica.Clocked.Examples.SimpleControlledDrive.ClockedWithDiscreteTextbookController"
   ]
 ]
-
-workdir = abspath(joinpath(@__DIR__, "test-regressionTests"))
