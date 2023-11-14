@@ -2,7 +2,7 @@
 
 julia_version = "1.9.1"
 manifest_format = "2.0"
-project_hash = "d7be50ff01e3cc91c96d7b9f8edaa162fd007a28"
+project_hash = "ff4eb59ea758b735f7ededf0323b4b573c479c73"
 
 [[deps.ANSIColoredPrinters]]
 git-tree-sha1 = "574baf8110975760d391c710b6341da1afa48d8c"
@@ -368,7 +368,7 @@ version = "1.2.0"
 deps = ["DataFrames", "DataStructures", "LightXML", "Random", "ZMQ"]
 path = ".."
 uuid = "0f4fe800-344e-11e9-2949-fb537ad918e1"
-version = "0.2.2"
+version = "0.3.0"
 
 [[deps.Observables]]
 git-tree-sha1 = "6862738f9796b3edc1c09d0890afce4eca9e7e93"
