@@ -62,6 +62,8 @@ module API
 
             if isnothing(errorString) && !isnothing(omc)
                 errorString = strip(OMJulia.sendExpression(omc, "getErrorString()"))
+            elseif isnothing(errorString)
+                errorString = ""
             end
             return new(msg, errorString)
         end
@@ -82,16 +84,25 @@ module API
         return replace(formattedString, "\\" => "/")
     end
 
-    function makeVectorString(args)
-        if length(args) == 0
+    """
+        modelicaString(vec)
+
+    Wrappes array in brackets and for each elemetn add quotes and replaces Windows style path seperation `\\` with `/`.
+    """
+    function modelicaString(vec::Vector{String})
+        return "{" .* join(modelicaString.(vec), ", ") .* "}"
+    end
+
+    """
+        makeVectorString(vec)
+
+    Add quotes around each string element.
+    """
+    function makeVectorString(vec::Vector{String})
+        if length(vec) == 0
             return "\"\""
         end
-        s = []
-        for item in args
-            args = join(["\"", item , "\""])
-            push!(s, args)
-        end
-        return join(s, ", ")
+        return join("\"" .* vec .* "\"", ", ")
     end
 
     """
@@ -104,7 +115,7 @@ module API
     Load file `fileName` (*.mo) and merge it with the loaded AST.
     See [OpenModelica scripting API `loadFile`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#loadfile).
     """
-    function loadFile(omc,
+    function loadFile(omc::OMJulia.OMCSession,
         fileName::String;
         encoding::String = "",
         uses::Bool = true,
@@ -132,7 +143,7 @@ module API
 
     See [OpenModelica scripting API `loadModel`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#loadmodel).
     """
-    function loadModel(omc,
+    function loadModel(omc::OMJulia.OMCSession,
         className::String;
         priorityVersion::Vector{String} = String[],
         notify::Bool = false,
@@ -140,7 +151,13 @@ module API
         requireExactVersion::Bool = false
         )
         exp = join(["loadModel", "(", "className", "=", className, ",", "priorityVersion", "=", "{", makeVectorString(priorityVersion), "}", ",", "notify", "=", notify,",", "languageStandard", "=", modelicaString(languageStandard), ",", "requireExactVersion", "=", requireExactVersion,")"])
-        return OMJulia.sendExpression(omc, exp)
+        
+        success = OMJulia.sendExpression(omc, exp)
+
+        if !success
+            throw(ScriptingError(omc, msg = "Failed to load model $(className)."))
+        end
+        return success
     end
 
     """
@@ -161,7 +178,7 @@ module API
 
     See [OpenModelica scripting API `simulate`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#simulate).
     """
-    function simulate(omc,
+    function simulate(omc::OMJulia.OMCSession,
         className::String;
         startTime::Float64 = 0.0,
         stopTime::Union{Float64, Nothing} = nothing,
@@ -222,7 +239,7 @@ module API
 
     See [OpenModelica scripting API `buildModel`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#buildmodel).
     """
-    function buildModel(omc,
+    function buildModel(omc::OMJulia.OMCSession,
         className::String;
         startTime::Float64 = 0.0,
         stopTime::Float64 = 1.0,
@@ -255,7 +272,7 @@ module API
 
     See [OpenModelica scripting API `getClassNames`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#getclassnames).
     """
-    function getClassNames(omc;
+    function getClassNames(omc::OMJulia.OMCSession;
                            class_::String = "",
                            recursive::Bool = false,
                            qualified::Bool = false,
@@ -272,11 +289,7 @@ module API
 
         exp = "getClassNames($args)"
 
-        try
-            return OMJulia.sendExpression(omc, exp)
-        finally
-            return OMJulia.sendExpression(omc, exp, parsed=false)
-        end
+        return OMJulia.sendExpression(omc, exp)
     end
 
     """
@@ -288,7 +301,7 @@ module API
 
     See [OpenModelica scripting API `readSimulationResult`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#readsimulationresult).
     """
-    function readSimulationResult(omc,
+    function readSimulationResult(omc::OMJulia.OMCSession,
         filename::String,
         variables::Vector{String} = String[],
         size::Int64 = 0
@@ -305,7 +318,7 @@ module API
 
     See [OpenModelica scripting API `readSimulationResultSize`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#readsimulationresultsize).
     """
-    function readSimulationResultSize(omc,
+    function readSimulationResultSize(omc::OMJulia.OMCSession,
         fileName::String
         )
 
@@ -322,7 +335,7 @@ module API
 
     See [OpenModelica scripting API `readSimulationResultVars`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#readsimulationresultvars).
     """
-    function readSimulationResultVars(omc,
+    function readSimulationResultVars(omc::OMJulia.OMCSession,
         fileName::String;
         readParameters::Bool = true,
         openmodelicaStyle::Bool = false
@@ -342,7 +355,7 @@ module API
 
     See [OpenModelica scripting API `closeSimulationResultFile`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#closesimulationresultfile).
     """
-    function closeSimulationResultFile(omc)
+    function closeSimulationResultFile(omc::OMJulia.OMCSession)
         return OMJulia.sendExpression(omc, "closeSimulationResultFile()")
     end
 
@@ -353,7 +366,7 @@ module API
 
     See [OpenModelica scripting API `setCommandLineOptions`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#setcommandlineoptions).
     """
-    function setCommandLineOptions(omc,
+    function setCommandLineOptions(omc::OMJulia.OMCSession,
         option::String
         )
 
@@ -374,7 +387,7 @@ module API
 
     See [OpenModelica scripting API `cd`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#cd).
     """
-    function cd(omc,
+    function cd(omc::OMJulia.OMCSession,
         newWorkingDirectory::String = "";
         )
 
@@ -392,7 +405,7 @@ module API
 
     See [OpenModelica scripting API `linearize`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#linearize).
     """
-    function linearize(omc,
+    function linearize(omc::OMJulia.OMCSession,
         className::String;
         startTime::Float64 = 0.0,
         stopTime::Float64 = 1.0,
@@ -425,7 +438,7 @@ module API
 
     See [OpenModelica scripting API `buildModelFMU`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#buildmodelfmu).
     """
-    function buildModelFMU(omc,
+    function buildModelFMU(omc::OMJulia.OMCSession,
         className::String;
         version::String = "2.0",
         fmuType::String = "me",
@@ -450,7 +463,7 @@ module API
 
     See [OpenModelica scripting API `getErrorString`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#geterrorstring).
     """
-    function getErrorString(omc;
+    function getErrorString(omc::OMJulia.OMCSession;
         warningsAsErrors::Bool = false
         )
 
@@ -465,7 +478,7 @@ module API
 
     See [OpenModelica scripting API `getVersion`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#getversion).
     """
-    function getVersion(omc)
+    function getVersion(omc::OMJulia.OMCSession)
         exp = join(["getVersion()"])
         return OMJulia.sendExpression(omc, exp)
     end
@@ -477,8 +490,48 @@ module API
 
     See [OpenModelica scripting API `getInstallationDirectoryPath`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#getinstallationdirectorypath).
     """
-    function getInstallationDirectoryPath(omc)
+    function getInstallationDirectoryPath(omc::OMJulia.OMCSession)
         exp = join(["getInstallationDirectoryPath()"])
         return OMJulia.sendExpression(omc, exp)
+    end
+
+    """
+        diffSimulationResults(omc, actualFile, expectedFile, diffPrefix;
+                              relTol = 1e-3,
+                              relTolDiffMinMax = 1e-4,
+                              rangeDelta = 0.002,
+                              vars = String[],
+                              keepEqualResults = false)
+
+    Compares simulation results.
+
+    See [OpenModelica scripting API `diffSimulationResults`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#diffsimulationresults).
+    """
+    function diffSimulationResults(omc::OMJulia.OMCSession,
+        actualFile::String,
+        expectedFile::String,
+        diffPrefix::String;
+        relTol::Float64 = 1e-3,
+        relTolDiffMinMax::Float64 = 1e-4,
+        rangeDelta::Float64 = 0.002,
+        vars::Vector{String} = String[],
+        keepEqualResults::Bool = false)
+
+        exp = "diffSimulationResults($(modelicaString(actualFile)),
+                                     $(modelicaString(expectedFile)),
+                                     $(modelicaString(diffPrefix)),
+                                     relTol=$relTol,
+                                     relTolDiffMinMax=$relTolDiffMinMax,
+                                     rangeDelta=$rangeDelta,
+                                     vars=$(modelicaString(vars)),
+                                     keepEqualResults=$keepEqualResults)"
+        @debug "$exp"
+        ret = OMJulia.sendExpression(omc, exp)
+
+        if isnothing(ret)
+            return (true, String[])
+        else
+            return (ret[1], convert(Vector{String}, ret[2]))
+        end
     end
 end
