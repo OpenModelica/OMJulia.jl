@@ -27,6 +27,8 @@ CONDITIONS OF OSMC-PL.
 =#
 
 using Test
+using CSV
+using DataFrames
 import OMJulia
 
 @testset "API" begin
@@ -38,11 +40,12 @@ import OMJulia
     end
 
     omc = OMJulia.OMCSession()
-    @test OMJulia.API.loadFile(omc, "../docs/testmodels/BouncingBall.mo")
+    @test OMJulia.API.loadFile(omc, joinpath(@__DIR__, "../docs/testmodels/BouncingBall.mo"))
 
     # Enter non-existing directory
-    @test_throws OMJulia.ScriptingError
- OMJulia.API.cd(omc, "this/is/not/a/valid/directory/I/hope/otherwise/our/test/does/some/wild/stuff")
+    @test_throws OMJulia.API.ScriptingError throw(OMJulia.API.ScriptingError(msg = "Test error message."))
+    @test_throws OMJulia.API.ScriptingError throw(OMJulia.API.ScriptingError(omc, msg = "Test error message."))
+    @test_throws OMJulia.API.ScriptingError OMJulia.API.cd(omc, "this/is/not/a/valid/directory/I/hope/otherwise/our/test/does/some/wild/stuff")
 
     dir = OMJulia.API.cd(omc, workdir)
     result2 = OMJulia.API.buildModel(omc, "BouncingBall")
@@ -57,18 +60,30 @@ import OMJulia
     vars = OMJulia.API.readSimulationResultVars(omc, resultfile)
     @test var = "h" in vars
 
-    simres = OMJulia.API.readSimulationResult(omc, resultfile, ["h"])
-    @test simres[1][1] == 1.0
+    simres = OMJulia.API.readSimulationResult(omc, resultfile, ["time", "h", "v"])
+    @test simres[2][1] == 1.0
+
+    df = DataFrame(:time => simres[1], :h => simres[2], :v => simres[3])
+    expectedFile = joinpath(workdir, "BouncingBall_ref.csv")
+    wrongExpectedFile = joinpath(workdir, "BouncingBall_wrong.csv")
+    CSV.write(expectedFile, df)
+    df2 = copy(df)
+    df2[:,2] .= df2[:,2] .* 0.01
+    CSV.write(wrongExpectedFile, df2)
+
+    @test (true, String[]) == OMJulia.API.diffSimulationResults(omc, resultfile, expectedFile, "diff"; vars=String[])
+    @test (true, String[]) == OMJulia.API.diffSimulationResults(omc, resultfile, expectedFile, "diff"; vars=["h", "v"])
+    @test (false, ["h"]) == OMJulia.API.diffSimulationResults(omc, resultfile, wrongExpectedFile, "diff"; vars=["h", "v"])
 
     fmu = joinpath(workdir, "BouncingBall.fmu")
     OMJulia.API.buildModelFMU(omc, "BouncingBall")
     @test isfile(fmu)
 
-    result3 = OMJulia.API.setCommandLineOptions(omc, "--generateSymbolicLinearization")
-    @test result3 == true
+    @test OMJulia.API.setCommandLineOptions(omc, "--generateSymbolicLinearization")
 
-    classNames = OMJulia.API.getClassNames()
-    @test classNames == [:BouncingBall]
+    @test OMJulia.API.loadFile(omc, joinpath(@__DIR__, "../docs/testmodels/ModSeborgCSTRorg.mo"))
+
+    @test [:BouncingBall, :ModSeborgCSTRorg] == sort(OMJulia.API.getClassNames(omc))
 
     OMJulia.quit(omc)
 end
