@@ -106,6 +106,7 @@ function testModels(omc::OMJulia.OMCSession, models::Vector{S}; libdir) where S<
       @testset "FMI" begin
         if isfile(resultFile)
           recordValues = names(CSV.read(resultFile, DataFrame))[2:end]
+          filter!(val -> !startswith(val, "\$"), recordValues) # Filter internal variables
           testFmuExport(omc, model, resultFile, recordValues; workdir=modeldir)
         else
           @test false
@@ -151,8 +152,8 @@ libraries = [
 models = [
   [
     "Modelica.Blocks.Examples.Filter",
-    "Modelica.Blocks.Examples.RealNetwork1",
     "Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
+    "Modelica.Blocks.Examples.RealNetwork1",
     "Modelica.Electrical.Digital.Examples.FlipFlop",
     "Modelica.Mechanics.Rotational.Examples.FirstGrounded",
     "Modelica.Mechanics.Rotational.Examples.CoupledClutches",

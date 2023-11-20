@@ -1,4 +1,4 @@
-name: Regression Test
+name: Regression Tests
 
 on:
   push:
@@ -19,7 +19,6 @@ jobs:
         julia-arch: ['x64']
         os: ['ubuntu-latest', 'windows-latest']
         omc-version: ['stable', 'nightly', '1.12']
-
 
     steps:
       - uses: actions/checkout@v4
@@ -53,3 +52,9 @@ jobs:
 
       - name: "Run regression test"
         run: julia --project=test/. -e "include(\"test/regressionTests.jl\"); runTests(libraries, models)"
+
+      - name: Archive FMUs
+        uses: actions/upload-artifact@v3
+        with:
+          name: fmu-export
+          path: test/test-regressionTests/**/*.fmu
