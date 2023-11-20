@@ -27,97 +27,93 @@ CONDITIONS OF OSMC-PL.
 =#
 
 using Test
-using DataFrames
-using CSV
 
-import OMJulia
-import FMI
+include("runSingleTest.jl")
 
 """
-Simulate single model to generate a result file.
+Timeout error.
 """
-function testSimulation(omc::OMJulia.OMCSession, className::String)
-  @info "\tSimulation"
-  @testset "Simulation" begin
-    res = OMJulia.API.simulate(omc, className; outputFormat="csv")
-    resultFile = res["resultFile"]
-
-    @test isfile(resultFile)
-    return resultFile
-  end
+struct TimeOutError <: Exception
+  cmd::Cmd
+end
+function Base.showerror(io::IO, e::TimeOutError)
+  println(io, "Timeout reached running command")
+  println(io, e.cmd)
 end
 
 """
-Build a FMU for a single model, import the generated FMU, simulate it and compare to given reference results.
+Run single test process.
+
+Start a new Julia process.
+Kill process and throw TimeOutError when timeout is reached.
+Catch InterruptException, kill process and rethorw InterruptException.
+
+# Arguments
+  - `library`:  Modelica library name.
+  - `version`:  Library version.
+  - `model`:    Modelica model from library to test.
+  - `testdir`:  Test working directory.
+
+# Keywords
+  - `timeout=10*60::Integer`:   Timeout in seconds. Defaults to 10 minutes.
 """
-function testFmuExport(omc::OMJulia.OMCSession, className::String, referenceResult, recordValues; workdir::String)
-  local fmuPath
-  @info "\tFMU Export"
-  @testset "Export" begin
-    fmuPath = OMJulia.API.buildModelFMU(omc, className)
-    @test isfile(fmuPath)
-    @test splitext(splitpath(fmuPath)[end]) == (className, ".fmu")
-  end
+function singleTest(library, version, model, testdir;
+                    timeout=10*60::Integer)
 
-  @info "\tFMU Import"
-  @testset "Import" begin
-    if isfile(fmuPath)
-      fmu = FMI.fmiLoad(fmuPath)
-      solution = FMI.fmiSimulate(fmu; recordValues = recordValues, showProgress=false)
+  mkpath(testdir)
+  logFile = joinpath(testdir, "runSingleTest.log")
+  rm(logFile, force=true)
 
-      # Own implementation of CSV export, workaround for https://github.com/ThummeTo/FMI.jl/issues/198
-      df = DataFrames.DataFrame(time = solution.values.t)
-      for i in 1:length(solution.values.saveval[1])
-        for var in FMI.fmi2ValueReferenceToString(fmu, solution.valueReferences[i])
-          if in(var, recordValues)
-            df[!, Symbol(var)] = [val[i] for val in solution.values.saveval]
-          end
-        end
-      end
-      fmiResult = joinpath(workdir, "FMI_results.csv")
-      CSV.write(fmiResult, df)
+  @info "Testing $model"
 
-      #FMI.fmiSaveSolution(solution, "FMI_results.csv")
-      @test true
-    else
-      @test false
-    end
-  end
+  cmd = Cmd(`julia runSingleTest.jl $(library) $(version) $(model) $(testdir)`, dir=@__DIR__)
+  @info cmd
+  plp = pipeline(cmd, stdout=logFile, stderr=logFile)
+  process = run(plp, wait=false)
 
-  @info "\tCheck Results"
-  @testset "Verification" begin
-    @test (true, String[]) == OMJulia.API.diffSimulationResults(omc, "FMI_results.csv", referenceResult, "diff")
-  end
-end
-
-"""
-Run Simulation and FMU export/import test for all models.
-"""
-function testModels(omc::OMJulia.OMCSession, models::Vector{S}; libdir) where S<:AbstractString
-  local resultFile
-
-  for model in models
-    @testset "$model" begin
-      modeldir = joinpath(libdir, model)
-      mkpath(modeldir)
-      @info "Testing $model"
-      OMJulia.API.cd(omc, modeldir)
-      resultFile = testSimulation(omc, model)
-      @testset "FMI" begin
-        if isfile(resultFile)
-          recordValues = names(CSV.read(resultFile, DataFrame))[2:end]
-          filter!(val -> !startswith(val, "\$"), recordValues) # Filter internal variables
-          testFmuExport(omc, model, resultFile, recordValues; workdir=modeldir)
-        else
-          @test false
-        end
+  try
+    timer = Timer(0; interval=1)
+    for _ in 1:timeout
+      wait(timer)
+      if !process_running(process)
+        close(timer)
+        break
       end
     end
+    if process_running(process)
+      @error "Killing $(process)"
+      kill(process)
+    end
+  catch e
+    if isa(e, InterruptException) && process_running(p)
+      @error "Killing process $(cmd)."
+      kill(p)
+    end
+    rethrow(e)
   end
+
+  println(read(logFile, String))
+
+  status = (process.exitcode == 0) &&
+           isfile(joinpath(testdir, "$(model).fmu")) &&
+           isfile(joinpath(testdir, "FMI_results.csv"))
+
+  return status
 end
 
 """
-Run test for all libraries.
+Run all tests.
+
+Start a new Julia process for each test.
+Kill process and throw TimeOutError when timeout is reached.
+Catch InterruptException, kill process and rethorw InterruptException.
+
+# Arguments
+  - `libraries::Vector{Tuple{S,S}}`:  Vector of tuples with library and version to test.
+  - `models::Vector{Vector{S}}`:      Vector of vectors with models to test for each library.
+
+# Keywords
+  - `workdir`:                        Root working directory.
 """
 function runTests(libraries::Vector{Tuple{S,S}},
                   models::Vector{Vector{S}};
@@ -132,12 +128,12 @@ function runTests(libraries::Vector{Tuple{S,S}},
         libdir = joinpath(workdir, library)
         mkpath(libdir)
 
-        omc = OMJulia.OMCSession()
-
-        @test OMJulia.API.loadModel(omc, library; priorityVersion = [version], requireExactVersion = true)
-        testModels(omc, models[i]; libdir=libdir)
-
-        OMJulia.quit(omc)
+        for model in models[i]
+          modeldir = joinpath(libdir, model)
+          @testset "$model" begin
+            @test singleTest(library, version, model, modeldir)
+          end
+        end
       end
     end
   end
@@ -159,8 +155,8 @@ models = [
     "Modelica.Mechanics.Rotational.Examples.CoupledClutches",
     "Modelica.Mechanics.MultiBody.Examples.Elementary.DoublePendulum",
     "Modelica.Mechanics.MultiBody.Examples.Elementary.FreeBody",
-    "Modelica.Fluid.Examples.PumpingSystem",
     "Modelica.Fluid.Examples.TraceSubstances.RoomCO2WithControls",
-    "Modelica.Clocked.Examples.SimpleControlledDrive.ClockedWithDiscreteTextbookController"
+    "Modelica.Clocked.Examples.SimpleControlledDrive.ClockedWithDiscreteTextbookController",
+    "Modelica.Fluid.Examples.PumpingSystem"
   ]
 ]
