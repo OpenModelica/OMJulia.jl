@@ -51,7 +51,7 @@ jobs:
         run: julia --project=regression-tests/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
 
       - name: "Run regression test"
-        run: julia --project=regression-tests/. -e "include(\"regression-tests/regressionTests.jl\"); runTests(libraries, models)"
+        run: julia --project=regression-tests/. -e 'include(\"regression-tests/regressionTests.jl\"); runTests(libraries, models)'
 
       - name: Archive FMUs
         uses: actions/upload-artifact@v3
