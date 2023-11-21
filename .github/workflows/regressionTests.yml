@@ -10,7 +10,7 @@ on:
 
 jobs:
   regression-test:
-    if: github.repository == 'OpenModelica/OMJulia.jl' # Run only on OpenModelica/OMJulia.jl to prevent spamming forks
+    #if: github.repository == 'OpenModelica/OMJulia.jl' # Run only on OpenModelica/OMJulia.jl to prevent spamming forks
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
