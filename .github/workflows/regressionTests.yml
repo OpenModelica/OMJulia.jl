@@ -3,6 +3,7 @@ name: Regression Tests
 on:
   push:
     branches: ['master', 'maintenance/*']
+  pull_request:
   schedule:
     - cron: "25 4 * * 3" # Every Wednesday at 04:25
   workflow_dispatch:
@@ -31,7 +32,6 @@ jobs:
             omc
           libraries: |
             'Modelica 4.0.0'
-            'Buildings 10.0.0'
 
       - run: "omc --version"
 
@@ -48,13 +48,13 @@ jobs:
         uses: julia-actions/julia-buildpkg@v1
 
       - name: Install dependencies
-        run: julia --project=test/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+        run: julia --project=regression-tests/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
 
       - name: "Run regression test"
-        run: julia --project=test/. -e "include(\"test/regressionTests.jl\"); runTests(libraries, models)"
+        run: julia --project=regression-tests/. -e "include(\"regression-tests/regressionTests.jl\"); runTests(libraries, models)"
 
       - name: Archive FMUs
         uses: actions/upload-artifact@v3
         with:
           name: fmu-export
-          path: test/test-regressionTests/**/*.fmu
+          path: regression-tests/temp/**/*.fmu
