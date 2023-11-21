@@ -451,7 +451,7 @@ module API
         generatedFileName = OMJulia.sendExpression(omc, exp)
 
         if !isfile(generatedFileName) || !endswith(generatedFileName, ".fmu")
-            throw(ScriptingError(omc, msg = "Failed to load file $(modelicaString(fileName))."))
+            throw(ScriptingError(omc, msg = "Failed to load file $(modelicaString(generatedFileName))."))
         end
         return generatedFileName
     end
