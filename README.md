@@ -2,7 +2,7 @@
 
 *Julia scripting [OpenModelica](https://openmodelica.org/) interface.*
 
-[![][docs-dev-img]][docs-dev-url] [![][GHA-test-img]][GHA-test-url]
+[![][docs-dev-img]][docs-dev-url] [![][GHA-test-img]][GHA-test-url] [![][GHA-regressions-img]][GHA-regressions-url]
 
 ## Requirements
 
@@ -82,3 +82,6 @@ CONDITIONS OF OSMC-PL.
 
 [GHA-test-img]: https://github.com/OpenModelica/OMJulia.jl/actions/workflows/Test.yml/badge.svg?branch=master
 [GHA-test-url]: https://github.com/OpenModelica/OMJulia.jl/actions/workflows/Test.yml
+
+[GHA-regressions-img]: https://github.com/OpenModelica/OMJulia.jl/actions/workflows/regressionTests.yml/badge.svg?branch=master
+[GHA-regressions-url]: https://github.com/OpenModelica/OMJulia.jl/actions/workflows/regressionTests.yml
