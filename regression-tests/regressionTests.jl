@@ -29,21 +29,10 @@ CONDITIONS OF OSMC-PL.
 using Test
 
 """
-Timeout error.
-"""
-struct TimeOutError <: Exception
-  cmd::Cmd
-end
-function Base.showerror(io::IO, e::TimeOutError)
-  println(io, "Timeout reached running command")
-  println(io, e.cmd)
-end
-
-"""
 Run single test process.
 
 Start a new Julia process.
-Kill process and throw TimeOutError when timeout is reached.
+Kill process and throw an error when timeout is reached.
 Catch InterruptException, kill process and rethorw InterruptException.
 
 # Arguments
@@ -101,10 +90,6 @@ end
 
 """
 Run all tests.
-
-Start a new Julia process for each test.
-Kill process and throw TimeOutError when timeout is reached.
-Catch InterruptException, kill process and rethorw InterruptException.
 
 # Arguments
   - `libraries::Vector{Tuple{S,S}}`:  Vector of tuples with library and version to test.
