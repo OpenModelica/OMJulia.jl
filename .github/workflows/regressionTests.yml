@@ -19,7 +19,7 @@ jobs:
         julia-version: ['1.8', '1.9']
         julia-arch: ['x64']
         os: ['ubuntu-latest', 'windows-latest']
-        omc-version: ['stable', 'nightly', '1.12']
+        omc-version: ['stable', 'nightly', '1.21']
 
     steps:
       - uses: actions/checkout@v4

@@ -146,7 +146,7 @@ libraries = [
 models = [
   [
     "Modelica.Blocks.Examples.Filter",
-    "Modelica.Electrical.Analog.Examples.CauerLowPassAnalog"
+    "Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
     "Modelica.Blocks.Examples.RealNetwork1",
     "Modelica.Electrical.Digital.Examples.FlipFlop",
     "Modelica.Mechanics.Rotational.Examples.FirstGrounded",
