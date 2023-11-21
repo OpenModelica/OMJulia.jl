@@ -48,12 +48,11 @@ import OMJulia
     @test_throws OMJulia.API.ScriptingError OMJulia.API.cd(omc, "this/is/not/a/valid/directory/I/hope/otherwise/our/test/does/some/wild/stuff")
 
     dir = OMJulia.API.cd(omc, workdir)
-    result2 = OMJulia.API.buildModel(omc, "BouncingBall")
-    @test result2[2] == "BouncingBall_init.xml"
-    result2 = OMJulia.API.buildModel(omc, "BouncingBall")
-    @test result2[2] == "BouncingBall_init.xml"
+    result = OMJulia.API.buildModel(omc, "BouncingBall")
+    @test result[2] == "BouncingBall_init.xml"
     resultfile = joinpath(workdir, "BouncingBall_res.mat")
 
+    foreach(rm, readdir(workdir, join=true)) # Remove simulation artifacts from previous buildModel
     OMJulia.API.simulate(omc, "BouncingBall")
     @test isfile(resultfile)
 

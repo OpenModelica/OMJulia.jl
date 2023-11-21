@@ -69,8 +69,8 @@ ModelicaSystem(mod, "BouncingBall.mo", "BouncingBall", ["Modelica", "SystemDynam
 See also [`OMCSession()`](@ref).
 """
 function ModelicaSystem(omc::OMCSession,
-                        fileName::AbstractString = nothing,
-                        modelName::AbstractString = nothing,
+                        fileName::Union{AbstractString, Nothing},
+                        modelName::AbstractString,
                         library::Union{<:AbstractString, Tuple{<:AbstractString, <:AbstractString}, Array{<:AbstractString}, Array{Tuple{<:AbstractString, <:AbstractString}}, Nothing} = nothing;
                         commandLineOptions::Union{<:AbstractString, Nothing} = nothing,
                         variableFilter::Union{<:AbstractString, Nothing} = nothing)
@@ -84,12 +84,14 @@ function ModelicaSystem(omc::OMCSession,
     sendExpression(omc, "setCommandLineOptions(\"--linearizationDumpLanguage=julia\")")
     sendExpression(omc, "setCommandLineOptions(\"--generateSymbolicLinearization\")")
 
-    omc.filepath = fileName
     omc.modelname = modelName
     omc.variableFilter = variableFilter
 
     #loadFile and set temporary directory
-    loadFile(omc, fileName)
+    if !isnothing(fileName)
+        omc.filepath = fileName
+        loadFile(omc, fileName)
+    end
 
     #set temp directory for each modelica session
     setTempDirectory(omc)
@@ -136,35 +138,13 @@ ModelicaSystem(mod, modelName="Modelica.Electrical.Analog.Examples.CauerLowPassA
 See also [`OMCSession()`](@ref).
 """
 function ModelicaSystem(omc::OMCSession;
-    modelName::AbstractString=nothing,
-    library::Union{<:AbstractString,Tuple{<:AbstractString,<:AbstractString},Array{<:AbstractString},Array{Tuple{<:AbstractString,<:AbstractString}},Nothing}=nothing,
-    commandLineOptions::Union{<:AbstractString,Nothing}=nothing,
-    variableFilter::Union{<:AbstractString,Nothing}=nothing)
+                        fileName::Union{AbstractString, Nothing} = nothing,
+                        modelName::AbstractString,
+                        library::Union{<:AbstractString,Tuple{<:AbstractString,<:AbstractString},Array{<:AbstractString},Array{Tuple{<:AbstractString,<:AbstractString}},Nothing} = nothing,
+                        commandLineOptions::Union{<:AbstractString,Nothing} = nothing,
+                        variableFilter::Union{<:AbstractString,Nothing} = nothing)
 
-    if isnothing(modelName)
-        return println("\"ModelicaSystem()\" constructor requires modelName")
-    end
-
-    ## check for commandLineOptions
-    setCommandLineOptions(omc, commandLineOptions)
-
-    ## set default command Line Options for linearization as
-    ## linearize() will use the simulation executable and runtime
-    ## flag -l to perform linearization
-    sendExpression(omc, "setCommandLineOptions(\"--linearizationDumpLanguage=julia\")")
-    sendExpression(omc, "setCommandLineOptions(\"--generateSymbolicLinearization\")")
-
-    omc.modelname = modelName
-    omc.variableFilter = variableFilter
-
-    #set temp directory for each modelica session
-    setTempDirectory(omc)
-
-    #load Libraries provided by users
-    loadLibrary(omc, library)
-
-    # build the model
-    buildModel(omc)
+    ModelicaSystem(omc, fileName, modelName, library; commandLineOptions=commandLineOptions, variableFilter=variableFilter)
 end
 
 
@@ -199,36 +179,42 @@ function setTempDirectory(omc::OMCSession)
     sendExpression(omc, "cd(\"" * omc.tempdir * "\")")
 end
 
-function loadLibrary(omc::OMCSession, library::Union{<:AbstractString, Tuple{<:AbstractString, <:AbstractString}, Array{<:AbstractString}, Array{Tuple{<:AbstractString, <:AbstractString}}, Nothing} = nothing)
-    #load Libraries provided by users
-    if !isnothing(library)
-        if isa(library, AbstractString)
-            loadLibraryHelper(omc, library)
-        # allow users to provide library version e.g. ("Modelica", "3.2.3")
-        elseif isa(library, Tuple{AbstractString, AbstractString})
-            if !isempty(library[2])
-                loadLibraryHelper(omc, library[1], library[2])
-            else
-                loadLibraryHelper(omc, library[1])
-            end
-        elseif isa(library, Array)
-            for i in library
-                # allow users to provide library version e.g. ("Modelica", "3.2.3")
-                if isa(i, Tuple{AbstractString, AbstractString})
-                    if !isempty(i[2])
-                        loadLibraryHelper(omc, i[1], i[2])
-                    else
-                        loadLibraryHelper(omc, i[1])
-                    end
-                elseif isa(i, AbstractString)
-                    loadLibraryHelper(omc, i)
-                else
-                    error("Unknown type detected in input argument library[$i]. Is of type $(typeof(i))")
-                end
-            end
+"""
+    loadLibrary(omc, library)
+
+Load libraries.
+"""
+function loadLibrary(omc::OMCSession, library::Union{<:AbstractString, Tuple{<:AbstractString, <:AbstractString}, Array{<:AbstractString}, Array{Tuple{<:AbstractString, <:AbstractString}}, Nothing})
+    if isnothing(library)
+        return
+    end
+
+    if isa(library, AbstractString)
+        loadLibraryHelper(omc, library)
+    # allow users to provide library version e.g. ("Modelica", "3.2.3")
+    elseif isa(library, Tuple{AbstractString, AbstractString})
+        if !isempty(library[2])
+            loadLibraryHelper(omc, library[1], library[2])
         else
-            error("Unknown type detected in input argument library[$i]. Is of type $(typeof(i))")
+            loadLibraryHelper(omc, library[1])
         end
+    elseif isa(library, Array)
+        for i in library
+            # allow users to provide library version e.g. ("Modelica", "3.2.3")
+            if isa(i, Tuple{AbstractString, AbstractString})
+                if !isempty(i[2])
+                    loadLibraryHelper(omc, i[1], i[2])
+                else
+                    loadLibraryHelper(omc, i[1])
+                end
+            elseif isa(i, AbstractString)
+                loadLibraryHelper(omc, i)
+            else
+                error("Unknown type detected in input argument library[$i]. Is of type $(typeof(i))")
+            end
+        end
+    else
+        error("Unknown type detected in input argument library[$i]. Is of type $(typeof(i))")
     end
 end
 
