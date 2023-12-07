@@ -52,7 +52,12 @@ import OMJulia
     @test result[2] == "BouncingBall_init.xml"
     resultfile = joinpath(workdir, "BouncingBall_res.mat")
 
-    foreach(rm, readdir(workdir, join=true)) # Remove simulation artifacts from previous buildModel
+    # Remove simulation artifacts from previous buildModel
+    if VERSION > v"1.4"
+        foreach(rm, readdir(workdir, join=true))
+    else
+        foreach(rm, joinpath.(workdir, readdir(workdir)))
+    end
     OMJulia.API.simulate(omc, "BouncingBall")
     @test isfile(resultfile)
 
