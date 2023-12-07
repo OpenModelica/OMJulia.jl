@@ -151,7 +151,6 @@ module API
         requireExactVersion::Bool = false
         )
         exp = join(["loadModel", "(", "className", "=", className, ",", "priorityVersion", "=", "{", makeVectorString(priorityVersion), "}", ",", "notify", "=", notify,",", "languageStandard", "=", modelicaString(languageStandard), ",", "requireExactVersion", "=", requireExactVersion,")"])
-        
         success = OMJulia.sendExpression(omc, exp)
 
         if !success
@@ -533,5 +532,21 @@ module API
         else
             return (ret[1], convert(Vector{String}, ret[2]))
         end
+    end
+
+    """
+    instantiateModel(omc, className)
+
+    Instantiates the class and returns the flat Modelica code.
+
+    See [OpenModelica scripting API `instantiateModel`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#instantiatemodel).
+    """
+    function instantiateModel(omc::OMJulia.OMCSession, className::String)
+        flatModelicaCode = OMJulia.sendExpression(omc, "instantiateModel($className)")
+        if isempty(flatModelicaCode)
+          throw(OMJulia.API.ScriptingError(omc, msg = "instantiateModel($className)"))
+        end
+
+        return flatModelicaCode
     end
 end

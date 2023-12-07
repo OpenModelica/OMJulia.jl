@@ -84,5 +84,8 @@ import OMJulia
 
     @test [:BouncingBall, :ModSeborgCSTRorg] == sort(OMJulia.API.getClassNames(omc))
 
+    flatModelicaCode = OMJulia.API.instantiateModel(omc, "BouncingBall")
+    @test occursin("class BouncingBall", flatModelicaCode)
+
     OMJulia.quit(omc)
 end
