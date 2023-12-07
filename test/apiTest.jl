@@ -52,7 +52,12 @@ import OMJulia
     @test result[2] == "BouncingBall_init.xml"
     resultfile = joinpath(workdir, "BouncingBall_res.mat")
 
-    foreach(rm, readdir(workdir, join=true)) # Remove simulation artifacts from previous buildModel
+    # Remove simulation artifacts from previous buildModel
+    if VERSION > v"1.4"
+        foreach(rm, readdir(workdir, join=true))
+    else
+        foreach(rm, joinpath.(workdir, readdir(workdir)))
+    end
     OMJulia.API.simulate(omc, "BouncingBall")
     @test isfile(resultfile)
 
@@ -83,6 +88,9 @@ import OMJulia
     @test OMJulia.API.loadFile(omc, joinpath(@__DIR__, "../docs/testmodels/ModSeborgCSTRorg.mo"))
 
     @test [:BouncingBall, :ModSeborgCSTRorg] == sort(OMJulia.API.getClassNames(omc))
+
+    flatModelicaCode = OMJulia.API.instantiateModel(omc, "BouncingBall")
+    @test occursin("class BouncingBall", flatModelicaCode)
 
     OMJulia.quit(omc)
 end
