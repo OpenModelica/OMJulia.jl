@@ -3,7 +3,6 @@ name: Regression Tests
 on:
   push:
     branches: ['master', 'maintenance/*']
-  pull_request:
   schedule:
     - cron: "25 4 * * 3" # Every Wednesday at 04:25
   workflow_dispatch:
