@@ -275,7 +275,6 @@ function buildModel(omc::OMCSession; variableFilter::Union{<:AbstractString, Not
     else
         varFilter = join(["variableFilter=\"", ".*" ,"\""])
     end
-    varFilter
 
     buildmodelexpr = join(["buildModel(",omc.modelname,", ", varFilter,")"])
     @debug "buildmodelexpr: $buildmodelexpr"
