@@ -1282,7 +1282,7 @@ function linearize(omc::OMCSession; lintime = nothing, simflags= nothing, verbos
     if Sys.iswindows()
         installPath = sendExpression(omc, "getInstallationDirectoryPath()")
         envPath = ENV["PATH"]
-        newPath = "$(envPath);$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp"
+        newPath = "$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp;$(envPath)"
         # println("Path: $newPath")
         withenv("PATH" => newPath) do
             if verbose
