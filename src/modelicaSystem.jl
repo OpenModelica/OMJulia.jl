@@ -28,7 +28,7 @@ CONDITIONS OF OSMC-PL.
 
 """
     ModelicaSystem(omc, fileName, modelName, library=nothing;
-                   commandLineOptions=nothing, variableFilter=nothing)
+                   commandLineOptions=nothing, variableFilter=nothing, customBuildDirectory=nothing)
 
 Set command line options for OMCSession and build model `modelName` to prepare for a simulation.
 
@@ -73,7 +73,8 @@ function ModelicaSystem(omc::OMCSession,
                         modelName::AbstractString,
                         library::Union{<:AbstractString, Tuple{<:AbstractString, <:AbstractString}, Array{<:AbstractString}, Array{Tuple{<:AbstractString, <:AbstractString}}, Nothing} = nothing;
                         commandLineOptions::Union{<:AbstractString, Nothing} = nothing,
-                        variableFilter::Union{<:AbstractString, Nothing} = nothing)
+                        variableFilter::Union{<:AbstractString, Nothing} = nothing,
+                        customBuildDirectory::Union{<:AbstractString, Nothing} = nothing)
 
     ## check for commandLineOptions
     setCommandLineOptions(omc, commandLineOptions)
@@ -94,7 +95,7 @@ function ModelicaSystem(omc::OMCSession,
     end
 
     #set temp directory for each modelica session
-    setTempDirectory(omc)
+    setTempDirectory(omc, customBuildDirectory)
 
     #load Libraries provided by users
     loadLibrary(omc, library)
@@ -106,7 +107,7 @@ end
 
 """
     ModelicaSystem(omc; modelName, library=nothing,
-                   commandLineOptions=nothing, variableFilter=nothing)
+                   commandLineOptions=nothing, variableFilter=nothing, customBuildDirectory=nothing)
 
 Set command line options for OMCSession and build model `modelname` to prepare for a simulation.
 
@@ -142,9 +143,10 @@ function ModelicaSystem(omc::OMCSession;
                         modelName::AbstractString,
                         library::Union{<:AbstractString,Tuple{<:AbstractString,<:AbstractString},Array{<:AbstractString},Array{Tuple{<:AbstractString,<:AbstractString}},Nothing} = nothing,
                         commandLineOptions::Union{<:AbstractString,Nothing} = nothing,
-                        variableFilter::Union{<:AbstractString,Nothing} = nothing)
+                        variableFilter::Union{<:AbstractString,Nothing} = nothing,
+                        customBuildDirectory::Union{<:AbstractString,Nothing} = nothing)
 
-    ModelicaSystem(omc, fileName, modelName, library; commandLineOptions=commandLineOptions, variableFilter=variableFilter)
+    ModelicaSystem(omc, fileName, modelName, library; commandLineOptions=commandLineOptions, variableFilter=variableFilter, customBuildDirectory=customBuildDirectory)
 end
 
 
@@ -171,10 +173,17 @@ function loadFile(omc::OMCSession, filename::AbstractString)
     end
 end
 
-function setTempDirectory(omc::OMCSession)
-    omc.tempdir = replace(mktempdir(), r"[/\\]+" => "/")
-    if !isdir(omc.tempdir)
-        error("Failed to create temp directory \"$(omc.tempdir)\"")
+function setTempDirectory(omc::OMCSession, customBuildDirectory::Union{<:AbstractString,Nothing}=nothing)
+    if !isnothing(customBuildDirectory)
+        if !isdir(customBuildDirectory)
+            error("Directory does not exist  \"$(customBuildDirectory)\"")
+        end
+        omc.tempdir = replace(abspath(customBuildDirectory), r"[/\\]+" => "/")
+    else
+        omc.tempdir = replace(mktempdir(), r"[/\\]+" => "/")
+        if !isdir(omc.tempdir)
+            error("Failed to create temp directory \"$(omc.tempdir)\"")
+        end
     end
     sendExpression(omc, "cd(\"" * omc.tempdir * "\")")
 end
@@ -701,7 +710,7 @@ function simulate(omc::OMCSession;
             if Sys.iswindows()
                 installPath = sendExpression(omc, "getInstallationDirectoryPath()")
                 envPath = ENV["PATH"]
-                newPath = "$(envPath);$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp"
+                newPath = "$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp;$(envPath)"
                 # println("Path: $newPath")
                 withenv("PATH" => newPath) do
                     if verbose
