@@ -40,6 +40,14 @@ import OMJulia
     end
 
     omc = OMJulia.OMCSession()
+    # Install packages
+    @test OMJulia.API.updatePackageIndex(omc)
+    versions = OMJulia.API.getAvailablePackageVersions(omc, "Modelica", version="3.0.0+maint.om")
+    @test "3.0.0+maint.om" in versions
+    @test OMJulia.API.upgradeInstalledPackages(omc)
+    @test OMJulia.API.installPackage(omc, "Modelica", version = "")
+
+    # Load file
     @test OMJulia.API.loadFile(omc, joinpath(@__DIR__, "../docs/testmodels/BouncingBall.mo"))
 
     # Enter non-existing directory

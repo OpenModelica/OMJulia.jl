@@ -535,7 +535,7 @@ module API
     end
 
     """
-    instantiateModel(omc, className)
+        instantiateModel(omc, className)
 
     Instantiates the class and returns the flat Modelica code.
 
@@ -548,5 +548,85 @@ module API
         end
 
         return flatModelicaCode
+    end
+
+    """
+        installPackage(omc, pkg;
+                       version="",
+                       exactMatch=false)
+
+    Install package `pkg` with given `version`. If `version=""` try to install
+    most recent version of package. If `exactMatch` is true install exact
+    version, even if there are more recent backwards.compatible versions
+    available.
+
+    See [OpenModelica scripting API `installPackage`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#installpackage)
+    or [Package Management](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/packagemanager.html#using-the-package-manager-from-the-interactive-environment).
+    """
+    function installPackage(omc::OMJulia.OMCSession, pkg::String; version::String="", exactMatch::Bool=false)
+        success = OMJulia.sendExpression(omc, "installPackage($pkg, version=\"$version\", exactMatch=$exactMatch)")
+        if !success
+          throw(OMJulia.API.ScriptingError(omc, msg = "installPackage($pkg, version=$version, exactMatch=$exactMatch)"))
+        end
+        return success
+    end
+
+    """
+        updatePackageIndex(omc)
+
+    Update package index list.
+
+    The package manager contacts OSMC sersers and updated the internally sotred
+    list of available packages.
+
+    See [OpenModelica scripting API `updatePackageIndex`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#updatepackageindex)
+    or [Package Management](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/packagemanager.html#using-the-package-manager-from-the-interactive-environment).
+    """
+    function updatePackageIndex(omc::OMJulia.OMCSession)
+        success = OMJulia.sendExpression(omc, "updatePackageIndex()")
+        if !success
+          throw(OMJulia.API.ScriptingError(omc, msg = "updatePackageIndex()"))
+        end
+        return success
+    end
+
+    """
+        getAvailablePackageVersions(omc, pkg; version="")
+
+    Get available package versions of `pkg`.
+    Lists all available versions of the Buildings library on the OSMC server,
+    starting from the most recent one, in descending order of priority. Note
+    that pre-release versions have lower priority than all other versions.
+
+    See [OpenModelica scripting API `getAvailablePackageVersions`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#getavailablepackageversions)
+    or [Package
+    Management](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/packagemanager.html#using-the-package-manager-from-the-interactive-environment).
+    """
+    function getAvailablePackageVersions(omc::OMJulia.OMCSession, pkg::String; version::String="")
+        versions = OMJulia.sendExpression(omc, "getAvailablePackageVersions($pkg, version=\"$version\")")
+        if length(versions) == 0
+            errorString = strip(OMJulia.sendExpression(omc, "getErrorString()"))
+            if errorString != ""
+                throw(OMJulia.API.ScriptingError(omc, msg = "getAvailablePackageVersions($pkg, version=$version)", errorString=errorString))
+            end
+        end
+        return versions
+    end
+
+    """
+        upgradeInstalledPackages(omc; installNewestVersions=true)
+
+    Installs the latest available version of all installed packages.
+
+    See [OpenModelica scripting API `upgradeInstalledPackages`](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/scripting_api.html#upgradeinstalledpackages)
+    or [Package
+    Management](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/packagemanager.html#using-the-package-manager-from-the-interactive-environment).
+    """
+    function upgradeInstalledPackages(omc::OMJulia.OMCSession; installNewestVersions::Bool=true)
+        success = OMJulia.sendExpression(omc, "upgradeInstalledPackages($installNewestVersions)")
+        if !success
+            throw(OMJulia.API.ScriptingError(omc, msg = "upgradeInstalledPackages($installNewestVersions)"))
+        end
+        return success
     end
 end

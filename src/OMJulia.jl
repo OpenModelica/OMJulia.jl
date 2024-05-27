@@ -46,6 +46,8 @@ module OMJulia
     export linearize, getLinearInputs, getLinearOutputs, getLinearStates, getLinearizationOptions, setLinearizationOptions
     # sensitivity analysis
     export sensitivity
+    # package manager
+    export installPackage, updatePackageIndex, getAvailablePackageVersions, upgradeInstalledPackages
 
     include("error.jl")
     include("parser.jl")
