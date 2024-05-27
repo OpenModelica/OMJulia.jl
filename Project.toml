@@ -1,7 +1,7 @@
 name = "OMJulia"
 uuid = "0f4fe800-344e-11e9-2949-fb537ad918e1"
 authors = ["Martin Sjölund <martin.sjolund@liu.se>", "Arunkumar Palanisamy <arunkumar.palanisamy@liu.se>"]
-version = "0.3.1"
+version = "0.3.2"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
