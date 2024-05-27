@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        julia-version: ['1.9']
+        julia-version: ['1.10']
         julia-arch: [x64]
         os: [ubuntu-latest]
     timeout-minutes: 60
@@ -32,13 +32,13 @@ jobs:
             'Modelica 4.0.0'
 
       - name: Setup Julia
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
 
       - name: Cache Julia
-        uses: julia-actions/cache@v1
+        uses: julia-actions/cache@v2
 
       - name: Install dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
