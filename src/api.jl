@@ -179,10 +179,10 @@ module API
     """
     function simulate(omc::OMJulia.OMCSession,
         className::String;
-        startTime::Float64 = 0.0,
+        startTime::Union{Float64, Nothing} = nothing,
         stopTime::Union{Float64, Nothing} = nothing,
-        numberOfIntervals::Int64 = 500,
-        tolerance::Float64 = 1e-6,
+        numberOfIntervals::Union{Int64, Nothing} = nothing,
+        tolerance::Union{Float64, Nothing} = nothing,
         method::String = "",
         fileNamePrefix::String = className,
         options::String = "",
@@ -192,15 +192,24 @@ module API
         simflags::String = ""
         )
 
-        exp = join(["simulate", "(", className, ",",
-                                  "startTime", "=", startTime, ","])
-        # There is no default value for stopTime we can provide that behaves like not giving any value and using the stopTime from the experiment annotation...
+        exp = join(["simulate", "(", className, ","])
+
+        # There is no default value for startTime, stopTime, numberOfIntervals, tolerance,
+        # we can provide that behaves like not giving any value and using the values from the experiment annotation if exists, otherwise use default values
+        if !isnothing(startTime)
+            exp *= "startTime = $startTime,"
+        end
         if !isnothing(stopTime)
             exp *= "stopTime = $stopTime,"
         end
-        exp *= join(["numberOfIntervals", "=", numberOfIntervals, ",",
-                     "tolerance", "=", tolerance, ",",
-                     "method", "=", modelicaString(method), ",",
+        if !isnothing(numberOfIntervals)
+            exp *= "numberOfIntervals = $numberOfIntervals,"
+        end
+        if !isnothing(tolerance)
+            exp *= "tolerance = $tolerance,"
+        end
+
+        exp *= join(["method", "=", modelicaString(method), ",",
                      "fileNamePrefix", "=", modelicaString(fileNamePrefix), ",",
                      "options", "=", modelicaString(options), ",",
                      "outputFormat", "=", modelicaString(outputFormat), ",",
@@ -240,10 +249,10 @@ module API
     """
     function buildModel(omc::OMJulia.OMCSession,
         className::String;
-        startTime::Float64 = 0.0,
-        stopTime::Float64 = 1.0,
-        numberOfIntervals::Int64 = 500,
-        tolerance::Float64 = 1e-6,
+        startTime::Union{Float64, Nothing} = nothing,
+        stopTime::Union{Float64, Nothing} = nothing,
+        numberOfIntervals::Union{Int64, Nothing} = nothing,
+        tolerance::Union{Float64, Nothing} = nothing,
         method::String = "",
         fileNamePrefix::String = className,
         options::String = "",
@@ -253,7 +262,30 @@ module API
         simflags::String = ""
         )
 
-        exp = join(["buildModel", "(", className, ",", "startTime", "=", startTime,",", "stopTime", "=", stopTime,",", "numberOfIntervals", "=", numberOfIntervals,",", "tolerance", "=", tolerance,",", "method", "=", modelicaString(method), ",", "fileNamePrefix", "=", modelicaString(fileNamePrefix), ",", "options", "=", modelicaString(options), ",", "outputFormat", "=", modelicaString(outputFormat), ",", "variableFilter", "=", modelicaString(variableFilter), ",", "cflags", "=", modelicaString(cflags), ",", "simflags", "=", modelicaString(simflags),")"])
+        exp = join(["buildModel", "(", className, ","])
+
+        # There is no default value for startTime, stopTime, numberOfIntervals, tolerance,
+        # we can provide that behaves like not giving any value and using the values from the experiment annotation if exists, otherwise use default values
+        if !isnothing(startTime)
+            exp *= "startTime = $startTime,"
+        end
+        if !isnothing(stopTime)
+            exp *= "stopTime = $stopTime,"
+        end
+        if !isnothing(numberOfIntervals)
+            exp *= "numberOfIntervals = $numberOfIntervals,"
+        end
+        if !isnothing(tolerance)
+            exp *= "tolerance = $tolerance,"
+        end
+
+        exp *= join(["method", "=", modelicaString(method), ",",
+                     "fileNamePrefix", "=", modelicaString(fileNamePrefix), ",",
+                     "options", "=", modelicaString(options), ",",
+                     "outputFormat", "=", modelicaString(outputFormat), ",",
+                     "variableFilter", "=", modelicaString(variableFilter), ",",
+                     "cflags", "=", modelicaString(cflags), ",",
+                     "simflags", "=", modelicaString(simflags), ")"])
         return OMJulia.sendExpression(omc, exp)
     end
 
