@@ -6,8 +6,8 @@
 
 ## Requirements
 
-  - [OpenModelica](https://www.openmodelica.org/)
-  - [Julia](https://julialang.org/)
+- [OpenModelica](https://www.openmodelica.org/)
+- [Julia](https://julialang.org/)
 
 ## Installing OMJulia
 
@@ -52,9 +52,9 @@ julia> OMJulia.quit(omc)
 
 ## Bug Reports
 
-  - Submit OMJulia.jl bugs in this repositories [Issues](../../issues) section.
-  - Submit OpenModelica related bugs through the [OpenModelica GitHub issues](https://github.com/OpenModelica/OpenModelica/issues/new).
-  - [Pull requests](../../pulls) are welcome ❤️
+- Submit OMJulia.jl bugs in this repository's [Issues](../../issues) section.
+- Submit OpenModelica related bugs through the [OpenModelica GitHub issues](https://github.com/OpenModelica/OpenModelica/issues/new).
+- [Pull requests](../../pulls) are welcome ❤️
 
 ## License
 

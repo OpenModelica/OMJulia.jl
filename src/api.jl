@@ -401,9 +401,9 @@ module API
         option::String
         )
 
-        exp = join(["setCommandLineOptions", "(", "option", "=", modelicaString(option),")"])
+        exp = join(["setCommandLineOptions", "(", modelicaString(option),")"])
         success = OMJulia.sendExpression(omc, exp)
-        if !success
+        if isnothing(success) || !success
             throw(ScriptingError(omc, msg = "Failed to set command line options $(modelicaString(option))."))
         end
         return success
