@@ -30,7 +30,7 @@ jobs:
           packages: |
             omc
           libraries: |
-            'Modelica 4.0.0'
+            'Modelica 4.1.0'
 
       - run: "omc --version"
 

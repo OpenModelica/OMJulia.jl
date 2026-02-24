@@ -2,3 +2,4 @@
 *.cov
 /BouncingBall*
 Manifest.toml
+docs/Manifest.toml
