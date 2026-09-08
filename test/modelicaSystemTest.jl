@@ -80,3 +80,37 @@ end
         OMJulia.quit(mod)
     end
 end
+
+# `simflags` is one string that may carry several flags. Each has to reach the
+# executable as its own argument -- passing the whole string as a single argv
+# entry makes the runtime reject it as one unrecognized option.
+# See https://github.com/OpenModelica/OMJulia.jl/issues/133
+@testset "Multiple simulation flags" begin
+    workdir = abspath(joinpath(@__DIR__, "test-simflags"))
+    rm(workdir, recursive=true, force=true)
+    mkpath(workdir)
+
+    mod = OMJulia.OMCSession()
+    try
+        OMJulia.ModelicaSystem(mod,
+                               joinpath(@__DIR__, "..", "docs", "testmodels", "ModSeborgCSTRorg.mo"),
+                               "ModSeborgCSTRorg")
+
+        # One flag worked before; several did not.
+        OMJulia.simulate(mod, resultfile = joinpath(workdir, "one.mat"),
+                         simflags = "-s=euler")
+        @test isfile(joinpath(workdir, "one.mat"))
+
+        OMJulia.simulate(mod, resultfile = joinpath(workdir, "two.mat"),
+                         simflags = "-s=euler -emit_protected")
+        @test isfile(joinpath(workdir, "two.mat"))
+
+        # An empty or absent value must still mean "no flags".
+        OMJulia.simulate(mod, resultfile = joinpath(workdir, "none.mat"))
+        @test isfile(joinpath(workdir, "none.mat"))
+
+        @test OMJulia.linearize(mod, simflags = "-s=euler -emit_protected") isa Vector
+    finally
+        OMJulia.quit(mod)
+    end
+end
