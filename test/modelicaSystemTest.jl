@@ -47,3 +47,36 @@ import OMJulia
     @test isfile(fmu)
     OMJulia.quit(mod)
 end
+
+# `simulate` and `linearize` cd into the session tempdir to run the generated
+# executable. They must put the caller's working directory back on every exit
+# path -- including the successful one, which used to `return` straight out and
+# strand the process in a temporary directory that is later removed.
+# See https://github.com/OpenModelica/OMJulia.jl/issues/132
+@testset "Working directory is restored" begin
+    workdir = abspath(joinpath(@__DIR__, "test-workingdir"))
+    rm(workdir, recursive=true, force=true)
+    mkpath(workdir)
+
+    before = pwd()
+    mod = OMJulia.OMCSession()
+    try
+        OMJulia.ModelicaSystem(mod,
+                               joinpath(@__DIR__, "..", "docs", "testmodels", "ModSeborgCSTRorg.mo"),
+                               "ModSeborgCSTRorg")
+        @test pwd() == before
+
+        OMJulia.simulate(mod, resultfile = joinpath(workdir, "res.mat"))
+        @test pwd() == before
+
+        OMJulia.linearize(mod)
+        @test pwd() == before
+
+        # A failing run must not stranded us either.
+        @test_throws Exception OMJulia.simulate(mod, simflags = "-noSuchFlag")
+        @test pwd() == before
+    finally
+        cd(before)
+        OMJulia.quit(mod)
+    end
+end
