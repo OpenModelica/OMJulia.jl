@@ -706,7 +706,11 @@ function simulate(omc::OMCSession;
                     # run(pipeline(`$getexefile $overridevar`,stdout="log.txt",stderr="error.txt"))
                 end
                 # remove empty args in cmd objects
-                cmd = filter!(e -> e ≠ "", [getexefile,overridevar,csvinput,r,simflags])
+                # `simflags` is a single string that may hold several flags; split it so
+                # each reaches the executable as its own argument rather than one
+                # quoted blob. See https://github.com/OpenModelica/OMJulia.jl/issues/133
+                cmd = filter!(e -> e ≠ "", [getexefile, overridevar, csvinput, r])
+                append!(cmd, String.(split(simflags)))
                 # println(cmd)
                 if Sys.iswindows()
                     installPath = sendExpression(omc, "getInstallationDirectoryPath()")
@@ -1277,7 +1281,9 @@ function linearize(omc::OMCSession; lintime = nothing, simflags= nothing, verbos
         linruntime = join(["-l=", omc.linearization.linearOptions["stopTime"]])
     end
 
-    finalLinearizationexe = filter!(e -> e ≠ "", [getexefile, linruntime, overrideFlag, csvinput, simflags])
+    # Split `simflags` so each flag is its own argument; see issue #133.
+    finalLinearizationexe = filter!(e -> e ≠ "", [getexefile, linruntime, overrideFlag, csvinput])
+    append!(finalLinearizationexe, String.(split(simflags)))
     # println(finalLinearizationexe)
 
     # `cd` into tempdir to run the simulation executable, and restore the
