@@ -679,59 +679,62 @@ function simulate(omc::OMCSession;
             getexefile = replace(joinpath(omc.tempdir, omc.modelname), r"[/\\]+" => "/")
         end
         if isfile(getexefile)
-            ## change to tempdir
+            ## change to tempdir to run the simulation executable, restoring the
+            ## caller's working directory even if the run throws
             cd(omc.tempdir)
-            if !isempty(omc.overridevariables) | !isempty(omc.simoptoverride)
-                tmpdict = merge(omc.overridevariables, omc.simoptoverride)
-                overridefile = replace(joinpath(omc.tempdir, join([omc.modelname,"_override.txt"])), r"[/\\]+" => "/")
-                file = open(overridefile, "w")
-                for k in keys(tmpdict)
-                    val = join([k,"=",tmpdict[k],"\n"])
-                    println(val)
-                    write(file, val)
+            try
+                if !isempty(omc.overridevariables) | !isempty(omc.simoptoverride)
+                    tmpdict = merge(omc.overridevariables, omc.simoptoverride)
+                    overridefile = replace(joinpath(omc.tempdir, join([omc.modelname,"_override.txt"])), r"[/\\]+" => "/")
+                    file = open(overridefile, "w")
+                    for k in keys(tmpdict)
+                        val = join([k,"=",tmpdict[k],"\n"])
+                        println(val)
+                        write(file, val)
+                    end
+                    close(file)
+                    overridevar = join(["-overrideFile=", overridefile])
+                else
+                    overridevar = ""
                 end
-                close(file)
-                overridevar = join(["-overrideFile=", overridefile])
-            else
-                overridevar = ""
-            end
-            if omc.inputFlag
-                createcsvdata(omc, omc.simulateOptions["startTime"], omc.simulateOptions["stopTime"])
-                csvinput = join(["-csvInput=",omc.csvfile])
-                # run(pipeline(`$getexefile $overridevar $csvinput`,stdout="log.txt",stderr="error.txt"))
-            else
-                csvinput = ""
-                # run(pipeline(`$getexefile $overridevar`,stdout="log.txt",stderr="error.txt"))
-            end
-            # remove empty args in cmd objects
-            cmd = filter!(e -> e ≠ "", [getexefile,overridevar,csvinput,r,simflags])
-            # println(cmd)
-            if Sys.iswindows()
-                installPath = sendExpression(omc, "getInstallationDirectoryPath()")
-                envPath = ENV["PATH"]
-                newPath = "$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp;$(envPath)"
-                # println("Path: $newPath")
-                withenv("PATH" => newPath) do
+                if omc.inputFlag
+                    createcsvdata(omc, omc.simulateOptions["startTime"], omc.simulateOptions["stopTime"])
+                    csvinput = join(["-csvInput=",omc.csvfile])
+                    # run(pipeline(`$getexefile $overridevar $csvinput`,stdout="log.txt",stderr="error.txt"))
+                else
+                    csvinput = ""
+                    # run(pipeline(`$getexefile $overridevar`,stdout="log.txt",stderr="error.txt"))
+                end
+                # remove empty args in cmd objects
+                cmd = filter!(e -> e ≠ "", [getexefile,overridevar,csvinput,r,simflags])
+                # println(cmd)
+                if Sys.iswindows()
+                    installPath = sendExpression(omc, "getInstallationDirectoryPath()")
+                    envPath = ENV["PATH"]
+                    newPath = "$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp;$(envPath)"
+                    # println("Path: $newPath")
+                    withenv("PATH" => newPath) do
+                        if verbose
+                            run(pipeline(`$cmd`))
+                        else
+                            run(pipeline(`$cmd`, stdout="log.txt", stderr="error.txt"))
+                        end
+                    end
+                else
                     if verbose
                         run(pipeline(`$cmd`))
                     else
                         run(pipeline(`$cmd`, stdout="log.txt", stderr="error.txt"))
                     end
                 end
-            else
-                if verbose
-                    run(pipeline(`$cmd`))
-                else
-                    run(pipeline(`$cmd`, stdout="log.txt", stderr="error.txt"))
-                end
+                # omc.resultfile=replace(joinpath(omc.tempdir,join([omc.modelname,"_res.mat"])),r"[/\\]+" => "/")
+                omc.simulationFlag = true
+            finally
+                cd(omc.currentdir)
             end
-            # omc.resultfile=replace(joinpath(omc.tempdir,join([omc.modelname,"_res.mat"])),r"[/\\]+" => "/")
-            omc.simulationFlag = true
         else
             error("Simulation Failed")
         end
-        ## change to currentworkingdirectory
-        cd(omc.currentdir)
     end
 end
 
@@ -1277,54 +1280,60 @@ function linearize(omc::OMCSession; lintime = nothing, simflags= nothing, verbos
     finalLinearizationexe = filter!(e -> e ≠ "", [getexefile, linruntime, overrideFlag, csvinput, simflags])
     # println(finalLinearizationexe)
 
+    # `cd` into tempdir to run the simulation executable, and restore the
+    # caller's working directory on every exit path -- the success path used to
+    # `return` straight out and leave the process in a temporary directory that
+    # is later removed. See https://github.com/OpenModelica/OMJulia.jl/issues/132
     cd(omc.tempdir)
-    if Sys.iswindows()
-        installPath = sendExpression(omc, "getInstallationDirectoryPath()")
-        envPath = ENV["PATH"]
-        newPath = "$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp;$(envPath)"
-        # println("Path: $newPath")
-        withenv("PATH" => newPath) do
+    try
+        if Sys.iswindows()
+            installPath = sendExpression(omc, "getInstallationDirectoryPath()")
+            envPath = ENV["PATH"]
+            newPath = "$(installPath)/bin/;$(installPath)/lib/omc;$(installPath)/lib/omc/cpp;$(installPath)/lib/omc/omsicpp;$(envPath)"
+            # println("Path: $newPath")
+            withenv("PATH" => newPath) do
+                if verbose
+                    run(pipeline(`$finalLinearizationexe`))
+                else
+                    run(pipeline(`$finalLinearizationexe`, stdout="log.txt", stderr="error.txt"))
+                end
+            end
+        else
             if verbose
                 run(pipeline(`$finalLinearizationexe`))
             else
                 run(pipeline(`$finalLinearizationexe`, stdout="log.txt", stderr="error.txt"))
             end
         end
-    else
-        if verbose
-            run(pipeline(`$finalLinearizationexe`))
-        else
-            run(pipeline(`$finalLinearizationexe`, stdout="log.txt", stderr="error.txt"))
+
+        omc.linearization.linearmodelname = "linearized_model"
+        omc.linearization.linearfile = joinpath(omc.tempdir, join([omc.linearization.linearmodelname,".jl"]))
+
+        # support older openmodelica versions before OpenModelica v1.16.2 where linearize() generates "linear_modelname.mo" file
+        if(!isfile(omc.linearization.linearfile))
+            omc.linearization.linearmodelname = join(["linear_", omc.modelname])
+            omc.linearization.linearfile = joinpath(omc.tempdir, join([omc.linearization.linearmodelname, ".jl"]))
         end
-    end
 
-    omc.linearization.linearmodelname = "linearized_model"
-    omc.linearization.linearfile = joinpath(omc.tempdir, join([omc.linearization.linearmodelname,".jl"]))
-
-    # support older openmodelica versions before OpenModelica v1.16.2 where linearize() generates "linear_modelname.mo" file
-    if(!isfile(omc.linearization.linearfile))
-        omc.linearization.linearmodelname = join(["linear_", omc.modelname])
-        omc.linearization.linearfile = joinpath(omc.tempdir, join([omc.linearization.linearmodelname, ".jl"]))
-    end
-
-    if isfile(omc.linearization.linearfile)
-        omc.linearization.linearFlag = true
-        # this function is called from the generated Julia code linearized_model.jl,
-        # to improve the performance by directly reading the matrices A, B, C and D from the julia code and avoid building the linearized modelica model
-        include(omc.linearization.linearfile)
-        ## to be evaluated at runtime, as Julia expects all functions should be known at the compilation time so efficient assembly code can be generated.
-        result = invokelatest(linearized_model)
-        (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
-        omc.linearization.linearstates = stateVars
-        omc.linearization.linearinputs = inputVars
-        omc.linearization.linearoutputs = outputVars
-        return [A, B, C, D]
-    else
-        errormsg = sendExpression(omc, "getErrorString()")
+        if isfile(omc.linearization.linearfile)
+            omc.linearization.linearFlag = true
+            # this function is called from the generated Julia code linearized_model.jl,
+            # to improve the performance by directly reading the matrices A, B, C and D from the julia code and avoid building the linearized modelica model
+            include(omc.linearization.linearfile)
+            ## to be evaluated at runtime, as Julia expects all functions should be known at the compilation time so efficient assembly code can be generated.
+            result = invokelatest(linearized_model)
+            (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
+            omc.linearization.linearstates = stateVars
+            omc.linearization.linearinputs = inputVars
+            omc.linearization.linearoutputs = outputVars
+            return [A, B, C, D]
+        else
+            errormsg = sendExpression(omc, "getErrorString()")
+            error("\"$(omc.linearization.linearfile)\" not found \n$errormsg")
+        end
+    finally
         cd(omc.currentdir)
-        error("\"$(omc.linearization.linearfile)\" not found \n$errormsg")
     end
-    cd(omc.currentdir)
 end
 
 """
