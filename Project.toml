@@ -4,6 +4,7 @@ authors = ["Martin Sjölund <martin.sjolund@liu.se>", "Arunkumar Palanisamy <aru
 version = "0.3.3"
 
 [deps]
+Automa = "67c07d97-cdcb-5c2c-af73-a7f9c32a568b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 LightXML = "9c8b4983-aa76-5018-a973-4c85ecc9e179"
@@ -11,6 +12,7 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 ZMQ = "c2297ded-f4af-51ae-bb23-16f91089e4e1"
 
 [compat]
+Automa = "1"
 DataFrames = "0.19.4, 0.20, 0.21, 0.22, 1"
 DataStructures = "0.9, 0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16.1, 0.17, 0.18, 0.19"
 LightXML = "0.8, 0.9"

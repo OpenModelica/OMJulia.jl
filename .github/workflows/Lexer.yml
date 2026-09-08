@@ -1,0 +1,30 @@
+name: Lexer
+
+on:
+  push:
+    branches: ['master', 'maintenance/*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check-generated-lexer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Set up Julia"
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12'
+          arch: x64
+
+      - name: "Install generator dependencies"
+        run: julia --project=bin -e 'using Pkg; Pkg.instantiate()'
+
+      # Automa numbers machine states differently from run to run, so this
+      # compares what the committed and regenerated lexers do rather than
+      # diffing the generated file.
+      - name: "Check src/lexer.jl matches bin/generate_lexer.jl"
+        run: julia --project=bin bin/check_lexer.jl

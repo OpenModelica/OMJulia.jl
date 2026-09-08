@@ -53,4 +53,10 @@ end
     @test check("record ABC end ABC;", Dict(), Dict{String,Any})
     @test check("record ABC a = 1, 'b' = 2,\n  c = 3\nend ABC;", Dict("a" => 1, "'b'" => 2, "c" => 3), Dict{String,Int})
     @test check("", nothing, Nothing)
+
+    # Keywords must still beat identifiers on an exact match, but only there.
+    @test check("record ABC end ABC;", Dict(), Dict{String,Any})
+    @test check("ending", :ending, Symbol)
+    @test check("recorder", :recorder, Symbol)
+    @test check("falsy", :falsy, Symbol)
 end

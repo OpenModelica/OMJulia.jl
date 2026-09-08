@@ -20,7 +20,9 @@ struct LexerError <: Exception
   errmsg::AbstractString
 end
 
-include("memory.jl")
+import Automa
+using Automa: Tokenizer
+
 include("lexer.jl")
 
 show(io::IO, exc::ParseError) = print(io, string("Parse error: ",exc.errmsg))
