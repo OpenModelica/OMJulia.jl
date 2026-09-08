@@ -13,7 +13,11 @@ using Automa
 t        = re"[tT][rR][uU][eE]"
 f        = re"[fF][aA][lL][sS][eE]"
 str      = re"\"([^\"\x5c]|(\x5c.))*\""
-ident    = re"[_A-Za-z][_A-Za-z0-9]*|'([^'\x5c]|(\x5c.))+'"
+# A name is either a plain identifier or a quoted one. OMC prints qualified
+# names (`getClassNames(recursive = true)`) as dot-separated names, so accept a
+# dotted sequence of them as a single token.
+name     = re"[_A-Za-z][_A-Za-z0-9]*|'([^'\x5c]|(\x5c.))+'"
+ident    = name * rep(re"\." * name)
 int      = re"[-+]?[0-9]+"
 prefloat = re"[-+]?([0-9]+\.[0-9]*|[0-9]*\.[0-9]+)"
 float    = prefloat | (prefloat | re"[-+]?[0-9]+") * re"[eE][-+]?[0-9]+"

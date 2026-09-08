@@ -54,6 +54,15 @@ end
     @test check("record ABC a = 1, 'b' = 2,\n  c = 3\nend ABC;", Dict("a" => 1, "'b'" => 2, "c" => 3), Dict{String,Int})
     @test check("", nothing, Nothing)
 
+    # Qualified type names, as returned by getClassNames(recursive = true).
+    # See https://github.com/OpenModelica/OMJulia.jl/issues/123
+    @test check("Modelica.Blocks", Symbol("Modelica.Blocks"), Symbol)
+    @test check("Modelica.Blocks.Examples.PID_Controller",
+                Symbol("Modelica.Blocks.Examples.PID_Controller"), Symbol)
+    @test check("{Modelica.Blocks, Modelica.Math}",
+                [Symbol("Modelica.Blocks"), Symbol("Modelica.Math")], Array{Symbol,1})
+    @test check("'quoted.name'.tail", Symbol("'quoted.name'.tail"), Symbol)
+
     # Keywords must still beat identifiers on an exact match, but only there.
     @test check("record ABC end ABC;", Dict(), Dict{String,Any})
     @test check("ending", :ending, Symbol)

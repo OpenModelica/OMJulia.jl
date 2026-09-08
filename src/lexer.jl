@@ -123,7 +123,15 @@ begin
                                                                                                                                             if cs == 30
                                                                                                                                                 #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:514 =# @goto state_case_30
                                                                                                                                             else
-                                                                                                                                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:513 =# @goto exit
+                                                                                                                                                if cs == 31
+                                                                                                                                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:514 =# @goto state_case_31
+                                                                                                                                                else
+                                                                                                                                                    if cs == 32
+                                                                                                                                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:514 =# @goto state_case_32
+                                                                                                                                                    else
+                                                                                                                                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:513 =# @goto exit
+                                                                                                                                                    end
+                                                                                                                                                end
                                                                                                                                             end
                                                                                                                                         end
                                                                                                                                     end
@@ -285,8 +293,33 @@ begin
                                 if (byte in 0x41:0x5a || (byte in 0x61:0x7a || (byte in 0x30:0x39 || (byte in 0x5f:0x5f || false)))) && true
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
                                 else
-                                    cs = -13
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                    if byte == 0x2e && true
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
+                                    else
+                                        cs = -13
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                    end
+                                end
+                            end
+                            begin
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_14
+                                p += 1
+                                if p > p_end
+                                    cs = 14
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
+                                end
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_14
+                                ()
+                                byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
+                                if (byte in 0x41:0x5a || (byte in 0x61:0x7a || (byte in 0x5f:0x5f || false))) && true
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
+                                else
+                                    if byte == 0x27 && true
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_3
+                                    else
+                                        cs = -14
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                    end
                                 end
                             end
                             begin
@@ -311,61 +344,15 @@ begin
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_12_action_1
                                 else
                                     if (byte in 0x45:0x45 || (byte in 0x65:0x65 || false)) && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_15
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_16
                                     else
                                         if byte == 0x2e && true
-                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_14_action_1
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_15_action_1
                                         else
                                             cs = -12
                                             #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
                                         end
                                     end
-                                end
-                            end
-                            begin
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_15
-                                p += 1
-                                if p > p_end
-                                    cs = 15
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
-                                end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_15
-                                ()
-                                byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
-                                if byte in 0x30:0x39 && true
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_17_action_1
-                                else
-                                    if (byte in 0x2b:0x2b || (byte in 0x2d:0x2d || false)) && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_16
-                                    else
-                                        cs = -15
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
-                                    end
-                                end
-                            end
-                            begin
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:448 =# @label state_17_action_1
-                                begin
-                                    begin
-                                        stop = p
-                                        token = FLOAT
-                                    end
-                                end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_17
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_17
-                                p += 1
-                                if p > p_end
-                                    cs = 17
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
-                                end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_17
-                                ()
-                                byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
-                                if byte in 0x30:0x39 && true
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_17_action_1
-                                else
-                                    cs = -17
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
                                 end
                             end
                             begin
@@ -379,37 +366,83 @@ begin
                                 ()
                                 byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
                                 if byte in 0x30:0x39 && true
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_17_action_1
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_18_action_1
                                 else
-                                    cs = -16
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                    if (byte in 0x2b:0x2b || (byte in 0x2d:0x2d || false)) && true
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_17
+                                    else
+                                        cs = -16
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                    end
                                 end
                             end
                             begin
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:448 =# @label state_14_action_1
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:448 =# @label state_18_action_1
                                 begin
                                     begin
                                         stop = p
                                         token = FLOAT
                                     end
                                 end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_14
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_14
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_18
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_18
                                 p += 1
                                 if p > p_end
-                                    cs = 14
+                                    cs = 18
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
                                 end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_14
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_18
                                 ()
                                 byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
                                 if byte in 0x30:0x39 && true
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_14_action_1
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_18_action_1
+                                else
+                                    cs = -18
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                end
+                            end
+                            begin
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_17
+                                p += 1
+                                if p > p_end
+                                    cs = 17
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
+                                end
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_17
+                                ()
+                                byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
+                                if byte in 0x30:0x39 && true
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_18_action_1
+                                else
+                                    cs = -17
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                end
+                            end
+                            begin
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:448 =# @label state_15_action_1
+                                begin
+                                    begin
+                                        stop = p
+                                        token = FLOAT
+                                    end
+                                end
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_15
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_15
+                                p += 1
+                                if p > p_end
+                                    cs = 15
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
+                                end
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_15
+                                ()
+                                byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
+                                if byte in 0x30:0x39 && true
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_15_action_1
                                 else
                                     if (byte in 0x45:0x45 || (byte in 0x65:0x65 || false)) && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_15
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_16
                                     else
-                                        cs = -14
+                                        cs = -15
                                         #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
                                     end
                                 end
@@ -428,14 +461,6 @@ begin
                                     begin
                                         stop = p
                                         token = OPERATOR
-                                    end
-                                end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_11
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:448 =# @label state_11_action_3
-                                begin
-                                    begin
-                                        stop = p
-                                        token = IDENT
                                     end
                                 end
                                 #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_11
@@ -500,39 +525,14 @@ begin
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
                                 else
                                     if (byte in 0x52:0x52 || (byte in 0x72:0x72 || false)) && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_18_action_1
-                                    else
-                                        cs = -9
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
-                                    end
-                                end
-                            end
-                            begin
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:448 =# @label state_18_action_1
-                                begin
-                                    begin
-                                        stop = p
-                                        token = IDENT
-                                    end
-                                end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_18
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_18
-                                p += 1
-                                if p > p_end
-                                    cs = 18
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
-                                end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_18
-                                ()
-                                byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
-                                if (byte in 0x41:0x54 || (byte in 0x61:0x74 || (byte in 0x30:0x39 || (byte in 0x56:0x5a || (byte in 0x76:0x7a || (byte in 0x5f:0x5f || false)))))) && true
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
-                                else
-                                    if (byte in 0x55:0x55 || (byte in 0x75:0x75 || false)) && true
                                         #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_19_action_1
                                     else
-                                        cs = -18
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        if byte == 0x2e && true
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
+                                        else
+                                            cs = -9
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        end
                                     end
                                 end
                             end
@@ -554,14 +554,51 @@ begin
                                 #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_19
                                 ()
                                 byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
+                                if (byte in 0x41:0x54 || (byte in 0x61:0x74 || (byte in 0x30:0x39 || (byte in 0x56:0x5a || (byte in 0x76:0x7a || (byte in 0x5f:0x5f || false)))))) && true
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
+                                else
+                                    if (byte in 0x55:0x55 || (byte in 0x75:0x75 || false)) && true
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_20_action_1
+                                    else
+                                        if byte == 0x2e && true
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
+                                        else
+                                            cs = -19
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        end
+                                    end
+                                end
+                            end
+                            begin
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:448 =# @label state_20_action_1
+                                begin
+                                    begin
+                                        stop = p
+                                        token = IDENT
+                                    end
+                                end
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_20
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_20
+                                p += 1
+                                if p > p_end
+                                    cs = 20
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
+                                end
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_20
+                                ()
+                                byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
                                 if (byte in 0x46:0x5a || (byte in 0x66:0x7a || (byte in 0x30:0x39 || (byte in 0x41:0x44 || (byte in 0x61:0x64 || (byte in 0x5f:0x5f || false)))))) && true
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
                                 else
                                     if (byte in 0x45:0x45 || (byte in 0x65:0x65 || false)) && true
                                         #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_5
                                     else
-                                        cs = -19
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        if byte == 0x2e && true
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
+                                        else
+                                            cs = -20
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        end
                                     end
                                 end
                             end
@@ -587,39 +624,14 @@ begin
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
                                 else
                                     if (byte in 0x41:0x41 || (byte in 0x61:0x61 || false)) && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_20_action_1
-                                    else
-                                        cs = -8
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
-                                    end
-                                end
-                            end
-                            begin
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:448 =# @label state_20_action_1
-                                begin
-                                    begin
-                                        stop = p
-                                        token = IDENT
-                                    end
-                                end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_20
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_20
-                                p += 1
-                                if p > p_end
-                                    cs = 20
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
-                                end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_20
-                                ()
-                                byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
-                                if (byte in 0x4d:0x5a || (byte in 0x6d:0x7a || (byte in 0x41:0x4b || (byte in 0x61:0x6b || (byte in 0x30:0x39 || (byte in 0x5f:0x5f || false)))))) && true
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
-                                else
-                                    if (byte in 0x4c:0x4c || (byte in 0x6c:0x6c || false)) && true
                                         #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_21_action_1
                                     else
-                                        cs = -20
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        if byte == 0x2e && true
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
+                                        else
+                                            cs = -8
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        end
                                     end
                                 end
                             end
@@ -641,14 +653,18 @@ begin
                                 #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_21
                                 ()
                                 byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
-                                if (byte in 0x41:0x52 || (byte in 0x61:0x72 || (byte in 0x30:0x39 || (byte in 0x54:0x5a || (byte in 0x74:0x7a || (byte in 0x5f:0x5f || false)))))) && true
+                                if (byte in 0x4d:0x5a || (byte in 0x6d:0x7a || (byte in 0x41:0x4b || (byte in 0x61:0x6b || (byte in 0x30:0x39 || (byte in 0x5f:0x5f || false)))))) && true
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
                                 else
-                                    if (byte in 0x53:0x53 || (byte in 0x73:0x73 || false)) && true
+                                    if (byte in 0x4c:0x4c || (byte in 0x6c:0x6c || false)) && true
                                         #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_22_action_1
                                     else
-                                        cs = -21
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        if byte == 0x2e && true
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
+                                        else
+                                            cs = -21
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        end
                                     end
                                 end
                             end
@@ -670,14 +686,51 @@ begin
                                 #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_22
                                 ()
                                 byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
+                                if (byte in 0x41:0x52 || (byte in 0x61:0x72 || (byte in 0x30:0x39 || (byte in 0x54:0x5a || (byte in 0x74:0x7a || (byte in 0x5f:0x5f || false)))))) && true
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
+                                else
+                                    if (byte in 0x53:0x53 || (byte in 0x73:0x73 || false)) && true
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_23_action_1
+                                    else
+                                        if byte == 0x2e && true
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
+                                        else
+                                            cs = -22
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        end
+                                    end
+                                end
+                            end
+                            begin
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:448 =# @label state_23_action_1
+                                begin
+                                    begin
+                                        stop = p
+                                        token = IDENT
+                                    end
+                                end
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_23
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_23
+                                p += 1
+                                if p > p_end
+                                    cs = 23
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
+                                end
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_23
+                                ()
+                                byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
                                 if (byte in 0x46:0x5a || (byte in 0x66:0x7a || (byte in 0x30:0x39 || (byte in 0x41:0x44 || (byte in 0x61:0x64 || (byte in 0x5f:0x5f || false)))))) && true
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
                                 else
                                     if (byte in 0x45:0x45 || (byte in 0x65:0x65 || false)) && true
                                         #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_4
                                     else
-                                        cs = -22
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        if byte == 0x2e && true
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
+                                        else
+                                            cs = -23
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        end
                                     end
                                 end
                             end
@@ -723,40 +776,15 @@ begin
                                 if (byte in 0x41:0x5a || (byte in 0x66:0x7a || (byte in 0x30:0x39 || (byte in 0x61:0x64 || (byte in 0x5f:0x5f || false))))) && true
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
                                 else
-                                    if byte == 0x65 && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_23_action_1
+                                    if byte == 0x2e && true
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
                                     else
-                                        cs = -6
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
-                                    end
-                                end
-                            end
-                            begin
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:448 =# @label state_23_action_1
-                                begin
-                                    begin
-                                        stop = p
-                                        token = IDENT
-                                    end
-                                end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_23
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_23
-                                p += 1
-                                if p > p_end
-                                    cs = 23
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
-                                end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_23
-                                ()
-                                byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
-                                if (byte in 0x41:0x5a || (byte in 0x64:0x7a || (byte in 0x30:0x39 || (byte in 0x61:0x62 || (byte in 0x5f:0x5f || false))))) && true
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
-                                else
-                                    if byte == 0x63 && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_24_action_1
-                                    else
-                                        cs = -23
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        if byte == 0x65 && true
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_24_action_1
+                                        else
+                                            cs = -6
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        end
                                     end
                                 end
                             end
@@ -778,14 +806,18 @@ begin
                                 #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_24
                                 ()
                                 byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
-                                if (byte in 0x41:0x5a || (byte in 0x61:0x6e || (byte in 0x70:0x7a || (byte in 0x30:0x39 || (byte in 0x5f:0x5f || false))))) && true
+                                if (byte in 0x41:0x5a || (byte in 0x64:0x7a || (byte in 0x30:0x39 || (byte in 0x61:0x62 || (byte in 0x5f:0x5f || false))))) && true
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
                                 else
-                                    if byte == 0x6f && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_25_action_1
+                                    if byte == 0x2e && true
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
                                     else
-                                        cs = -24
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        if byte == 0x63 && true
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_25_action_1
+                                        else
+                                            cs = -24
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        end
                                     end
                                 end
                             end
@@ -807,14 +839,18 @@ begin
                                 #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_25
                                 ()
                                 byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
-                                if (byte in 0x41:0x5a || (byte in 0x61:0x71 || (byte in 0x30:0x39 || (byte in 0x73:0x7a || (byte in 0x5f:0x5f || false))))) && true
+                                if (byte in 0x41:0x5a || (byte in 0x61:0x6e || (byte in 0x70:0x7a || (byte in 0x30:0x39 || (byte in 0x5f:0x5f || false))))) && true
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
                                 else
-                                    if byte == 0x72 && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_26_action_1
+                                    if byte == 0x2e && true
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
                                     else
-                                        cs = -25
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        if byte == 0x6f && true
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_26_action_1
+                                        else
+                                            cs = -25
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        end
                                     end
                                 end
                             end
@@ -836,43 +872,18 @@ begin
                                 #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_26
                                 ()
                                 byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
-                                if (byte in 0x41:0x5a || (byte in 0x65:0x7a || (byte in 0x30:0x39 || (byte in 0x61:0x63 || (byte in 0x5f:0x5f || false))))) && true
+                                if (byte in 0x41:0x5a || (byte in 0x61:0x71 || (byte in 0x30:0x39 || (byte in 0x73:0x7a || (byte in 0x5f:0x5f || false))))) && true
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
                                 else
-                                    if byte == 0x64 && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_3
+                                    if byte == 0x2e && true
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
                                     else
-                                        cs = -26
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
-                                    end
-                                end
-                            end
-                            begin
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:448 =# @label state_5_action_1
-                                begin
-                                    begin
-                                        stop = p
-                                        token = IDENT
-                                    end
-                                end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_5
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_5
-                                p += 1
-                                if p > p_end
-                                    cs = 5
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
-                                end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_5
-                                ()
-                                byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
-                                if (byte in 0x41:0x5a || (byte in 0x61:0x6d || (byte in 0x6f:0x7a || (byte in 0x30:0x39 || (byte in 0x5f:0x5f || false))))) && true
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
-                                else
-                                    if byte == 0x6e && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_27_action_1
-                                    else
-                                        cs = -5
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        if byte == 0x72 && true
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_27_action_1
+                                        else
+                                            cs = -26
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        end
                                     end
                                 end
                             end
@@ -897,11 +908,81 @@ begin
                                 if (byte in 0x41:0x5a || (byte in 0x65:0x7a || (byte in 0x30:0x39 || (byte in 0x61:0x63 || (byte in 0x5f:0x5f || false))))) && true
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
                                 else
-                                    if byte == 0x64 && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_1
+                                    if byte == 0x2e && true
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
                                     else
-                                        cs = -27
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        if byte == 0x64 && true
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_3
+                                        else
+                                            cs = -27
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        end
+                                    end
+                                end
+                            end
+                            begin
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:448 =# @label state_5_action_1
+                                begin
+                                    begin
+                                        stop = p
+                                        token = IDENT
+                                    end
+                                end
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_5
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_5
+                                p += 1
+                                if p > p_end
+                                    cs = 5
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
+                                end
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_5
+                                ()
+                                byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
+                                if (byte in 0x41:0x5a || (byte in 0x61:0x6d || (byte in 0x6f:0x7a || (byte in 0x30:0x39 || (byte in 0x5f:0x5f || false))))) && true
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
+                                else
+                                    if byte == 0x2e && true
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
+                                    else
+                                        if byte == 0x6e && true
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_28_action_1
+                                        else
+                                            cs = -5
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        end
+                                    end
+                                end
+                            end
+                            begin
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:448 =# @label state_28_action_1
+                                begin
+                                    begin
+                                        stop = p
+                                        token = IDENT
+                                    end
+                                end
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_28
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_28
+                                p += 1
+                                if p > p_end
+                                    cs = 28
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
+                                end
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_28
+                                ()
+                                byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
+                                if (byte in 0x41:0x5a || (byte in 0x65:0x7a || (byte in 0x30:0x39 || (byte in 0x61:0x63 || (byte in 0x5f:0x5f || false))))) && true
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_2
+                                else
+                                    if byte == 0x2e && true
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
+                                    else
+                                        if byte == 0x64 && true
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_13_action_1
+                                        else
+                                            cs = -28
+                                            #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                        end
                                     end
                                 end
                             end
@@ -916,7 +997,7 @@ begin
                                 ()
                                 byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
                                 if byte in 0x30:0x39 && true
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_14_action_1
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_15_action_1
                                 else
                                     cs = -4
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
@@ -933,10 +1014,10 @@ begin
                                 ()
                                 byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
                                 if (byte in 0x5d:0xff || (byte in 0x28:0x5b || (byte in 0x00:0x26 || false))) && true
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_29
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_30
                                 else
                                     if byte == 0x5c && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_28
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_29
                                     else
                                         cs = -3
                                         #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
@@ -944,13 +1025,13 @@ begin
                                 end
                             end
                             begin
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_29
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_30
                                 p += 1
                                 if p > p_end
-                                    cs = 29
+                                    cs = 30
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
                                 end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_29
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_30
                                 begin
                                     while p + 30 < p_end
                                         var"##278" = true
@@ -963,7 +1044,7 @@ begin
                                     end
                                     while true
                                         if p > p_end
-                                            cs = 29
+                                            cs = 30
                                             #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:586 =# @goto exit
                                         end
                                         byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:588 =# @inbounds(getindex(mem, p))
@@ -973,30 +1054,55 @@ begin
                                 end
                                 byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
                                 if byte == 0x27 && true
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_11_action_3
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_31_action_1
                                 else
                                     if byte == 0x5c && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_28
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_29
                                     else
-                                        cs = -29
+                                        cs = -30
                                         #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
                                     end
                                 end
                             end
                             begin
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_28
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:448 =# @label state_31_action_1
+                                begin
+                                    begin
+                                        stop = p
+                                        token = IDENT
+                                    end
+                                end
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:455 =# @goto state_31
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_31
                                 p += 1
                                 if p > p_end
-                                    cs = 28
+                                    cs = 31
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
                                 end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_28
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_31
+                                ()
+                                byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
+                                if byte == 0x2e && true
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_14
+                                else
+                                    cs = -31
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
+                                end
+                            end
+                            begin
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_29
+                                p += 1
+                                if p > p_end
+                                    cs = 29
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
+                                end
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_29
                                 ()
                                 byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
                                 if byte in 0x00:0xff && true
-                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_29
+                                    #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_30
                                 else
-                                    cs = -28
+                                    cs = -29
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
                                 end
                             end
@@ -1033,7 +1139,7 @@ begin
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:493 =# @goto state_11_action_1
                                 else
                                     if byte == 0x5c && true
-                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_30
+                                        #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_32
                                     else
                                         cs = -2
                                         #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
@@ -1041,26 +1147,26 @@ begin
                                 end
                             end
                             begin
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_30
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:462 =# @label state_32
                                 p += 1
                                 if p > p_end
-                                    cs = 30
+                                    cs = 32
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:466 =# @goto exit
                                 end
-                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_30
+                                #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:500 =# @label state_case_32
                                 ()
                                 byte = #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:502 =# @inbounds(getindex(mem, p))
                                 if byte in 0x00:0xff && true
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:491 =# @goto state_2
                                 else
-                                    cs = -30
+                                    cs = -32
                                     #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:483 =# @goto exit
                                 end
                             end
                         end
                         #= /home/johti17/.julia/packages/Automa/fzRJn/src/codegen.jl:538 =# @label exit
                         if is_eof && (p > p_end && (cs > 4 && (begin
-                                                (cs < 69) & isodd(0x00000000007ff3fb >>> ((cs - 5) & 63))
+                                                (cs < 69) & isodd(0x0000000004ffe5fb >>> ((cs - 5) & 63))
                                             end || false)))
                             if cs == 5
                             else
@@ -1072,9 +1178,9 @@ begin
                                         else
                                             if cs == 24
                                             else
-                                                if cs == 8
+                                                if cs == 28
                                                 else
-                                                    if cs == 17
+                                                    if cs == 8
                                                     else
                                                         if cs == 23
                                                         else
@@ -1090,19 +1196,22 @@ begin
                                                                             else
                                                                                 if cs == 11
                                                                                 else
-                                                                                    if cs == 27
+                                                                                    if cs == 10
                                                                                     else
-                                                                                        if cs == 10
+                                                                                        if cs == 27
                                                                                         else
-                                                                                            if cs == 26
+                                                                                            if cs == 31
                                                                                             else
-                                                                                                if cs == 9
+                                                                                                if cs == 26
                                                                                                 else
-                                                                                                    if cs == 18
+                                                                                                    if cs == 9
                                                                                                     else
-                                                                                                        if cs == 14
+                                                                                                        if cs == 18
                                                                                                         else
-                                                                                                            ()
+                                                                                                            if cs == 15
+                                                                                                            else
+                                                                                                                ()
+                                                                                                            end
                                                                                                         end
                                                                                                     end
                                                                                                 end
