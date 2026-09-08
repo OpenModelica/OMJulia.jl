@@ -97,3 +97,38 @@ import OMJulia
         end
     end
 end
+
+# `ZMQ.recv` blocks forever, so an omc that dies mid-call used to hang the
+# caller with no way out but killing Julia. Poll instead and check omc is still
+# alive between polls. See https://github.com/OpenModelica/OMJulia.jl/issues/12
+@testset "Dead omc is reported, not waited on" begin
+    omc = OMJulia.OMCSession()
+    try
+        @test OMJulia.sendExpression(omc, "1+1") == 2
+
+        # A call slower than the poll interval must not be cut short.
+        @test OMJulia.sendExpression(omc, "getVersion()", timeout = 60) isa AbstractString
+
+        # Kill omc while it is working on a request.
+        @async begin
+            sleep(0.15)
+            kill(omc.zmqSession.omcprocess, Base.SIGKILL)
+        end
+        @test_throws ErrorException OMJulia.sendExpression(omc, "loadModel(Modelica)")
+    finally
+        try; OMJulia.quit(omc); catch; end
+    end
+end
+
+@testset "Explicit timeout gives up" begin
+    omc = OMJulia.OMCSession()
+    try
+        # omc is alive and simply has not answered yet, so this exercises the
+        # deadline rather than the liveness check.
+        @test_throws ErrorException OMJulia.sendExpression(omc, "loadModel(Modelica)",
+                                                           timeout = 0.001)
+    finally
+        # The socket is left mid-exchange, so kill rather than a polite quit.
+        try; kill(omc.zmqSession.omcprocess, Base.SIGKILL); catch; end
+    end
+end

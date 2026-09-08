@@ -110,7 +110,11 @@ mutable struct ZMQSession
                 # ompath=joinpath(omhome,"bin")
                 ## create a omc process with default OPENMODELICAHOME set in environment variable
                 withenv("OPENMODELICAHOME" => omhome) do
-                    omcprocess = open(pipeline(`$ompath $args1 $args2`))
+                    # Redirect to files like every other branch. Without a
+                    # redirect omc's output goes to a pipe nobody reads, and a
+                    # chatty run -- `-d=` debug flags, say -- fills the pipe
+                    # buffer and blocks omc forever.
+                    omcprocess = open(pipeline(`$ompath $args1 $args2`, stdout=stdoutfile, stderr=stderrfile))
                 end
             end
             portfile = join(["openmodelica.port.julia.", randPortSuffix])
@@ -151,6 +155,11 @@ mutable struct ZMQSession
         filedata = read(fullpath, String)
         context = ZMQ.Context()
         socket = ZMQ.Socket(context, REQ)
+        # ZMQ lingers indefinitely by default, so closing a socket whose peer is
+        # gone blocks forever -- if omc dies with a request outstanding, Julia
+        # then hangs on exit in the socket finalizer. Nothing is gained by
+        # waiting to flush a request omc will never read.
+        socket.linger = 0
         ZMQ.connect(socket, filedata)
 
         zmqSession = new(context, socket, omcprocess)
