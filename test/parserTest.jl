@@ -68,4 +68,27 @@ end
     @test check("ending", :ending, Symbol)
     @test check("recorder", :recorder, Symbol)
     @test check("falsy", :falsy, Symbol)
+
+    # String escapes. These pin the `\x5c` (backslash) spelling in the string
+    # and quoted-identifier patterns: the Automa 0.7 spelling `\\x5c` matches
+    # two backslashes instead of one and breaks these silently.
+    @test check("\"a\\\"b\"", "a\"b", String)
+    @test check("\"a\\\\b\"", "a\\b", String)
+    @test check("\"\"", "", String)
+    @test check("'q.x'", Symbol("'q.x'"), Symbol)
+
+    # A dot only joins two names. It is not a token on its own, so it may not
+    # lead, trail, or double up -- otherwise the qualified-name pattern would
+    # swallow input the old lexer rejected.
+    @test_throws OMJulia.Parser.LexerError OMJulia.Parser.parseOM("Modelica.")
+    @test_throws OMJulia.Parser.LexerError OMJulia.Parser.parseOM(".Modelica")
+    @test_throws OMJulia.Parser.LexerError OMJulia.Parser.parseOM("a..b")
+
+    # Input that is not Values.Value output still fails.
+    @test_throws OMJulia.Parser.LexerError OMJulia.Parser.parseOM("@bad@")
+    @test_throws OMJulia.Parser.LexerError OMJulia.Parser.parseOM("\"unterminated")
+
+    # `1..2` lexes as two floats (`1.` and `.2`) and fails in the parser, not
+    # the lexer.
+    @test_throws OMJulia.Parser.ParseError OMJulia.Parser.parseOM("1..2")
 end
