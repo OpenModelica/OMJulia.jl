@@ -1,61 +1,93 @@
 # Generate a Lexer for OpenModelica output (Values.Value)
 # =====================================================================
+#
+# Run from the repository root:
+#
+#     julia --project=bin bin/generate_lexer.jl
+#
+# and commit the regenerated src/lexer.jl.
 
-import Automa
-import Automa.RegExp: @re_str
-import MacroTools
-const re = Automa.RegExp
+using Automa
 
-# Describe patterns in regular expression.
-t     = re"[tT][rR][uU][eE]"
-f     = re"[fF][aA][lL][sS][eE]"
-string   = re"\"([^\"\\x5c]|(\\x5c.))*\""
-ident    = re"[_A-Za-z][_A-Za-z0-9]*|'([^'\\x5c]|(\\x5c.))+'"
+# Describe patterns in regular expressions.
+t        = re"[tT][rR][uU][eE]"
+f        = re"[fF][aA][lL][sS][eE]"
+str      = re"\"([^\"\x5c]|(\x5c.))*\""
+ident    = re"[_A-Za-z][_A-Za-z0-9]*|'([^'\x5c]|(\x5c.))+'"
 int      = re"[-+]?[0-9]+"
 prefloat = re"[-+]?([0-9]+\.[0-9]*|[0-9]*\.[0-9]+)"
-float    = prefloat | re.cat(prefloat | re"[-+]?[0-9]+", re"[eE][-+]?[0-9]+")
+float    = prefloat | (prefloat | re"[-+]?[0-9]+") * re"[eE][-+]?[0-9]+"
 operator = re"[={}(),;]|end"
-number   = int | float
-ws       = re"[ ]+"
-omtoken  = number | string | ident | operator
-omtokens = re.opt(ws) * re.rep(omtoken * re.opt(ws))
+ws       = re"[\n\t ]+"
 
-# Compile a finite-state machine.
-tokenizer = Automa.compile(
-  t => :(emit(true)),
-  f => :(emit(false)),
-  operator => :(emit(Symbol(data[ts:te]))),
-  re"record" => :(emit(Record())),
-  string => :(emit(unescape_string(data[ts+1:te-1]))),
-  ident => :(emit(Identifier(unescape_string(data[ts:te])))), # Should this be a symbol instead?
-  int => :(emit(parse(Int, data[ts:te]))),
-  float => :(emit(parse(Float64, data[ts:te]))),
-  re"[\n\t ]" => :(),
-  re"." => :(failed = true)
-)
+# Automa resolves an overlap between two token regexes by preferring the longest
+# match, and on a tie by preferring the token *later* in this list. `record`,
+# `end`, `true` and `false` are all also valid identifiers and must therefore
+# come after `IDENT` to win the tie, while a longer name such as `ending` still
+# lexes as an identifier because its match is longer.
+@enum OMToken::UInt8 ERROR WS STRING INT FLOAT IDENT OPERATOR RECORD TRUE FALSE
 
-# Generate a tokenizing function from the machine.
-ctx = Automa.CodeGenContext()
-init_code = MacroTools.prettify(Automa.generate_init_code(ctx, tokenizer))
-exec_code = MacroTools.prettify(Automa.generate_exec_code(ctx, tokenizer))
+tokens = (ERROR, [
+  WS       => ws,
+  STRING   => str,
+  INT      => int,
+  FLOAT    => float,
+  IDENT    => ident,
+  OPERATOR => operator,
+  RECORD   => re"record",
+  TRUE     => t,
+  FALSE    => f,
+])
 
-write(open("src/lexer.jl","w"), """# Generated Lexer for OpenModelica Values.Value output
+# `make_tokenizer` returns the definition of `Base.iterate(::Tokenizer)`; the
+# enum has to be defined before it, so emit both.
+tokenizer_code = Automa.make_tokenizer(tokens)
+Base.remove_linenums!(tokenizer_code)
 
+open(joinpath(@__DIR__, "..", "src", "lexer.jl"), "w") do io
+  print(io, """# Generated Lexer for OpenModelica Values.Value output
+#
+# Do not edit by hand. Regenerate with:
+#
+#     julia --project=bin bin/generate_lexer.jl
+
+@enum OMToken::UInt8 ERROR WS STRING INT FLOAT IDENT OPERATOR RECORD TRUE FALSE
+
+$(tokenizer_code)
+
+\"\"\"
+    tokenize(data::String)
+
+Tokenize OpenModelica `Values.Value` output into the values the parser
+consumes. Throws [`LexerError`](@ref) on input that is not valid output.
+\"\"\"
 function tokenize(data::String)
-  $(init_code)
-  p_end = p_eof = sizeof(data)
-  failed = false
   tokens = Any[]
-  emit(tok) = push!(tokens, tok)
-  while p ≤ p_eof && cs > 0
-    $(exec_code)
-  end
-  if cs < 0 || failed
-    throw(LexerError("Error while lexing"))
-  end
-  if p < p_eof
-    throw(LexerError("Did not scan until end of file. Remaining: \$(data[p:p_eof])"))
+  for (start, len, token) in Automa.tokenize(OMToken, data)
+    stop = start + len - 1
+    if token == ERROR
+      throw(LexerError("Error while lexing"))
+    elseif token == WS
+      continue
+    elseif token == TRUE
+      push!(tokens, true)
+    elseif token == FALSE
+      push!(tokens, false)
+    elseif token == RECORD
+      push!(tokens, Record())
+    elseif token == OPERATOR
+      push!(tokens, Symbol(data[start:stop]))
+    elseif token == STRING
+      push!(tokens, unescape_string(data[start+1:stop-1]))
+    elseif token == IDENT
+      push!(tokens, Identifier(unescape_string(data[start:stop])))
+    elseif token == INT
+      push!(tokens, parse(Int, data[start:stop]))
+    elseif token == FLOAT
+      push!(tokens, parse(Float64, data[start:stop]))
+    end
   end
   return tokens
 end
 """)
+end
