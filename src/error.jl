@@ -60,5 +60,7 @@ struct TimeoutError <: Exception
 end
 function Base.showerror(io::IO, e::TimeoutError)
   println(io, "TimeoutError")
-  print(e.msg)
+  # `print(e.msg)` went to stdout, so the message landed somewhere else in the
+  # output and the reported error was a bare "TimeoutError" with no detail.
+  print(io, e.msg)
 end
