@@ -60,6 +60,65 @@ mutable struct Linearization
 end
 
 """
+How long to wait for omc to write its ZMQ port file, in seconds.
+
+A healthy omc writes the file in well under a second and the wait ends the
+moment it appears, so this only bounds the pathological case. It is generous
+on purpose: the first omc start on a cold machine pays for paging the omc
+libraries off disk past the virus scanner, which has taken several seconds on
+a Windows CI runner.
+"""
+const PORT_FILE_TIMEOUT_S = 30
+
+"""
+    waitForPortFile(fullpath, omcprocess; timeout=PORT_FILE_TIMEOUT_S)
+
+Wait for `omcprocess` to write its ZMQ port file at `fullpath`.
+
+Return `true` as soon as the file exists, `false` if `timeout` seconds pass
+without it or if omc exits without ever writing it.
+
+Wait against the clock rather than counting `sleep`s. `sleep` rounds up to the
+OS timer granularity -- of the order of 15 ms on Windows against 1 ms on Linux
+-- so a fixed iteration count buys a different amount of time on every
+platform, and the amount it buys on Windows was not enough.
+"""
+function waitForPortFile(fullpath::AbstractString, omcprocess::Base.Process;
+                         timeout::Real=PORT_FILE_TIMEOUT_S)
+    deadline = time() + timeout
+    while true
+        isfile(fullpath) && return true
+        # omc is gone and is never going to write the file. Look once more, in
+        # case it wrote the file and exited between the two checks, then give
+        # up rather than sit out the rest of the deadline.
+        process_exited(omcprocess) && return isfile(fullpath)
+        time() >= deadline && return false
+        sleep(0.01)
+    end
+end
+
+"""
+    omcStartupLog(stdoutfile, stderrfile)
+
+omc's redirected output, formatted for an error message. Empty when omc said
+nothing or the logs cannot be read -- a missing log must not turn the error
+being reported into an unrelated IO error.
+"""
+function omcStartupLog(stdoutfile::AbstractString, stderrfile::AbstractString)
+    buffer = IOBuffer()
+    for (name, file) in (("stdout", stdoutfile), ("stderr", stderrfile))
+        contents = try
+            isfile(file) ? read(file, String) : ""
+        catch
+            ""
+        end
+        isempty(strip(contents)) && continue
+        print(buffer, "\nomc $(name):\n", contents)
+    end
+    return String(take!(buffer))
+end
+
+"""
     ZMQSession <: Any
 
 ZeroMQ session running interactive omc process.
@@ -142,20 +201,25 @@ mutable struct ZMQSession
         end
         fullpath = joinpath(tempdir(), portfile)
         @info("Path to zmq file=\"$fullpath\"")
-        ## Try to find better approach if possible, as sleep does not work properly across different platform
-        tries = 0
-        while tries < 100 && !isfile(fullpath)
-            sleep(0.02)
-            tries += 1
-        end
+        started = waitForPortFile(fullpath, omcprocess)
         # Catch omc error
         if process_exited(omcprocess) && omcprocess.exitcode != 0
             throw(OMCError(omcprocess.cmd, stdoutfile, stderrfile))
         end
-        rm.([stdoutfile, stderrfile], force=true)
-        if tries >= 100
-            throw(TimeoutError("ZMQ server port file \"$fullpath\" not created yet."))
+        if !started
+            # Read the logs before deleting them. Without them the error says
+            # only that a file is missing, which is no help in working out why.
+            # Kill omc too: no ZMQSession exists yet to carry the finalizer that
+            # would reap it, so it would be left running for the rest of the
+            # session, competing for the CPU the next start needs.
+            details = omcStartupLog(stdoutfile, stderrfile)
+            kill(omcprocess)
+            rm.([stdoutfile, stderrfile], force=true)
+            throw(TimeoutError("omc did not create the ZMQ server port file " *
+                               "\"$(fullpath)\" within $(PORT_FILE_TIMEOUT_S) s." *
+                               details))
         end
+        rm.([stdoutfile, stderrfile], force=true)
         filedata = read(fullpath, String)
         context = ZMQ.Context()
         socket = ZMQ.Socket(context, REQ)
