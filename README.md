@@ -2,7 +2,7 @@
 
 *Julia scripting [OpenModelica](https://openmodelica.org/) interface.*
 
-[![][docs-dev-img]][docs-dev-url] [![][GHA-test-img]][GHA-test-url] [![][GHA-regressions-img]][GHA-regressions-url] [![][codecov-img]][codecov-url]
+[![][docs-dev-img]][docs-dev-url] [![][GHA-test-img]][GHA-test-url] [![][GHA-regressions-img]][GHA-regressions-url] [![][GHA-nightly-img]][GHA-nightly-url] [![][codecov-img]][codecov-url]
 
 ## Requirements
 
@@ -85,6 +85,9 @@ CONDITIONS OF OSMC-PL.
 
 [GHA-regressions-img]: https://github.com/OpenModelica/OMJulia.jl/actions/workflows/regressionTests.yml/badge.svg?branch=master
 [GHA-regressions-url]: https://github.com/OpenModelica/OMJulia.jl/actions/workflows/regressionTests.yml
+
+[GHA-nightly-img]: https://github.com/OpenModelica/OMJulia.jl/actions/workflows/Nightly.yml/badge.svg
+[GHA-nightly-url]: https://github.com/OpenModelica/OMJulia.jl/actions/workflows/Nightly.yml
 
 [codecov-img]: https://codecov.io/gh/OpenModelica/OMJulia.jl/branch/master/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/OpenModelica/OMJulia.jl

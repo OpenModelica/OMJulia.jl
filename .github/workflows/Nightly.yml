@@ -1,0 +1,67 @@
+name: Nightly
+
+# The Test workflow says whether OMJulia works against what is released today.
+# This one says what is about to break it: the OpenModelica nightly, and the
+# unreleased Julia. Neither belongs on a pull request, where a red run would be
+# nobody's fault and would train people to ignore it.
+on:
+  schedule:
+    # 03:40 UTC on every third day of the month. Cron counts days rather than
+    # intervals, so the gap is one day shorter across a month boundary.
+    - cron: "40 3 */3 * *"
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    # Run only on the upstream repository, to prevent spamming forks.
+    if: github.repository == 'OpenModelica/OMJulia.jl'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The compiler that is about to become the release.
+          - julia-version: '1.12'
+            os: 'ubuntu-latest'
+            omc-version: 'nightly'
+          - julia-version: '1.12'
+            os: 'windows-latest'
+            omc-version: 'nightly'
+          # And the Julia that is about to become the release.
+          - julia-version: 'nightly'
+            os: 'ubuntu-latest'
+            omc-version: 'stable'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Set up OpenModelica Compiler"
+        uses: OpenModelica/setup-openmodelica@v1.0
+        with:
+          version: ${{ matrix.omc-version }}
+          packages: |
+            omc
+          libraries: |
+            'Modelica 4.1.0'
+
+      - run: "omc --version"
+
+      - name: "Set up Julia"
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+          arch: x64
+
+      - name: Cache Julia
+        uses: julia-actions/cache@v2
+
+      - name: "Build OMJulia"
+        uses: julia-actions/julia-buildpkg@v1
+
+      - name: "Test OMJulia"
+        uses: julia-actions/julia-runtest@v1
+        with:
+          # Coverage is measured by the Test workflow. Here the question is
+          # only whether the tests still pass.
+          coverage: false
