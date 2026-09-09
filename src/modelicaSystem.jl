@@ -776,7 +776,7 @@ function convertMo2FMU(omc; version::String = "2.0", fmuType::String = "me_cs", 
 
     ## check again for the length if unable to reduce
     if length(fileNamePrefix) > 50
-        return println("length of fileNamePrefix", fileNamePrefix,   "is too long ", length(fileNamePrefix), "fileNamePrefix prefix should be less than 50 characters")
+        error("fileNamePrefix \"$(fileNamePrefix)\" is $(length(fileNamePrefix)) characters; it must be shorter than 50.")
     end
 
     exp = join(["buildModelFMU(", omc.modelname, ", version=", API.modelicaString(version), ", fmuType=", API.modelicaString(fmuType), ", fileNamePrefix=", API.modelicaString(fileNamePrefix), ", includeResources=", includeResources, ")"])
@@ -784,7 +784,7 @@ function convertMo2FMU(omc; version::String = "2.0", fmuType::String = "me_cs", 
     fmu = sendExpression(omc, exp)
 
     if !isfile(fmu)
-        return println(sendExpression(omc, "getErrorString()"))
+        error("Failed to build FMU for $(omc.modelname):\n$(sendExpression(omc, "getErrorString()"))")
     end
 
     return fmu
@@ -795,7 +795,7 @@ function which converts FMU to modelicamodel
 """
 function convertFmu2Mo(omc::OMCSession, fmupath)
     if !isfile(fmupath)
-        return println(fmupath, " does not exist")
+        error("\"$(fmupath)\" does not exist")
     end
 
     fmupath = replace(fmupath, r"[/\\]+" => "/")
@@ -803,7 +803,7 @@ function convertFmu2Mo(omc::OMCSession, fmupath)
     filename = sendExpression(omc, "importFMU(\"" * fmupath * "\")")
 
     if !isfile(filename)
-        return println(sendExpression(omc, "getErrorString()"))
+        error("Failed to import FMU \"$(fmupath)\":\n$(sendExpression(omc, "getErrorString()"))")
     end
 
     return filename
