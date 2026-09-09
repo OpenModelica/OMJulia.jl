@@ -47,17 +47,19 @@ jobs:
       - name: "Test OMJulia"
         uses: julia-actions/julia-runtest@v1
         with:
-          # Instrumenting the whole matrix would upload four near-identical
-          # reports and slow every job down. One platform is enough to see
-          # what the tests reach.
-          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.julia-version == '1.12' }}
+          # One Julia is enough -- the two differ in what they run, not in
+          # what OMJulia code they reach -- but both operating systems are
+          # needed: the session startup in src/omcSession.jl branches on the
+          # platform, and a report from Linux alone marks the Windows half
+          # uncovered for good. Codecov merges the two.
+          coverage: ${{ matrix.julia-version == '1.12' }}
 
       - name: "Collect coverage"
-        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1.12'
+        if: matrix.julia-version == '1.12'
         uses: julia-actions/julia-processcoverage@v1
 
       - name: "Upload coverage to Codecov"
-        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1.12'
+        if: matrix.julia-version == '1.12'
         uses: codecov/codecov-action@v5
         with:
           files: lcov.info

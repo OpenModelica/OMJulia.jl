@@ -48,7 +48,7 @@ Afterwards the result can be plotted in Julia.
 
 ```@repl ModelicaSystem-example
 using OMJulia
-using CSV, DataFrames, PlotlyJS
+using DataFrames, PlotlyJS
 using PlotlyDocumenter # hide
 
 mod = OMJulia.OMCSession();
@@ -59,12 +59,10 @@ bouncingBallFile = joinpath(installDir, "share", "doc", "omc", "testmodels", "Bo
 ModelicaSystem(mod,
                bouncingBallFile,
                "BouncingBall")
-simulate(mod,
-         resultfile = "BouncingBall_ref.csv",
-         simflags   = "-override=outputFormat=csv,stopTime=3")
+setSimulationOptions(mod, stopTime = 3.0)
+simulate(mod)
 
-resultfile = joinpath(getWorkDirectory(mod), "BouncingBall_ref.csv")
-df = DataFrame(CSV.File(resultfile));
+df = getSolutions(mod, ["h"])
 
 plt = plot(df,
            x=:time, y=:h,

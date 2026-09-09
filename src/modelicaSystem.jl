@@ -71,7 +71,7 @@ See also [`OMCSession()`](@ref).
 function ModelicaSystem(omc::OMCSession,
                         fileName::Union{AbstractString, Nothing},
                         modelName::AbstractString,
-                        library::Union{<:AbstractString, Tuple{<:AbstractString, <:AbstractString}, Array{<:AbstractString}, Array{Tuple{<:AbstractString, <:AbstractString}}, Nothing} = nothing;
+                        library::Union{<:AbstractString, Tuple{<:AbstractString, <:AbstractString}, Array{<:AbstractString}, Array{<:Tuple{<:AbstractString, <:AbstractString}}, Nothing} = nothing;
                         commandLineOptions::Union{<:AbstractString, Nothing} = nothing,
                         variableFilter::Union{<:AbstractString, Nothing} = nothing,
                         customBuildDirectory::Union{<:AbstractString, Nothing} = nothing)
@@ -141,7 +141,7 @@ See also [`OMCSession()`](@ref).
 function ModelicaSystem(omc::OMCSession;
                         fileName::Union{AbstractString, Nothing} = nothing,
                         modelName::AbstractString,
-                        library::Union{<:AbstractString,Tuple{<:AbstractString,<:AbstractString},Array{<:AbstractString},Array{Tuple{<:AbstractString,<:AbstractString}},Nothing} = nothing,
+                        library::Union{<:AbstractString,Tuple{<:AbstractString,<:AbstractString},Array{<:AbstractString},Array{<:Tuple{<:AbstractString, <:AbstractString}},Nothing} = nothing,
                         commandLineOptions::Union{<:AbstractString,Nothing} = nothing,
                         variableFilter::Union{<:AbstractString,Nothing} = nothing,
                         customBuildDirectory::Union{<:AbstractString,Nothing} = nothing)
@@ -193,7 +193,7 @@ end
 
 Load libraries.
 """
-function loadLibrary(omc::OMCSession, library::Union{<:AbstractString, Tuple{<:AbstractString, <:AbstractString}, Array{<:AbstractString}, Array{Tuple{<:AbstractString, <:AbstractString}}, Nothing})
+function loadLibrary(omc::OMCSession, library::Union{<:AbstractString, Tuple{<:AbstractString, <:AbstractString}, Array{<:AbstractString}, Array{<:Tuple{<:AbstractString, <:AbstractString}}, Nothing})
     if isnothing(library)
         return
     end

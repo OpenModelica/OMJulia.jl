@@ -57,6 +57,11 @@ makedocs(
     "sendExpression" => "sendExpression.md"
   ],
   modules = [OMJulia],
+  # A failing @example block used to render its own error text into the
+  # published page and pass. That is how
+  # https://github.com/OpenModelica/OMJulia.jl/issues/119 stayed unnoticed --
+  # the quickstart shipped an ERROR where the bouncing ball plot belonged.
+  strict = [:example_block],
 )
 
 @info "Deploy the docs"

@@ -35,5 +35,6 @@ using Test
     @safetestset "Set methods" begin include("setMethodsTest.jl") end
     @safetestset "OMCSession" begin include("omcTest.jl") end
     @safetestset "ModelicaSystem" begin include("modelicaSystemTest.jl") end
+    @safetestset "Get methods" begin include("getMethodsTest.jl") end
     @safetestset "API" begin include("apiTest.jl") end
 end
