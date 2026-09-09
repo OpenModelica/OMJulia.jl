@@ -82,7 +82,11 @@ mutable struct ZMQSession
 
     function ZMQSession(omc::Union{String, Nothing}=nothing)::ZMQSession
         args1 = "--interactive=zmq"
-        randPortSuffix = Random.randstring(10)
+        # Draw from the OS, not the global RNG. `@testset` reseeds the global
+        # RNG identically for every testset, so `randstring(10)` returns the
+        # same string in each one -- every session created first inside a
+        # testset would then pick the same port file and collide.
+        randPortSuffix = Random.randstring(Random.RandomDevice(), 10)
         args2 = "-z=julia.$(randPortSuffix)"
 
         stdoutfile = "stdout-$(randPortSuffix).log"
