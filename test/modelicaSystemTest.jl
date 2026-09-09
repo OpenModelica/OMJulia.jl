@@ -44,7 +44,7 @@ import DataFrames
     OMJulia.simulate(mod,
                      resultfile = resultfile)
     @test isfile(resultfile)
-    fmu = OMJulia.convertMo2FMU(mod)
+    fmu = OMJulia.convertMo2Fmu(mod)
     @test isfile(fmu)
     OMJulia.quit(mod)
 end
@@ -110,7 +110,9 @@ end
         OMJulia.simulate(mod, resultfile = joinpath(workdir, "none.mat"))
         @test isfile(joinpath(workdir, "none.mat"))
 
-        @test OMJulia.linearize(mod, simflags = "-s=euler -emit_protected") isa Vector
+        result = OMJulia.linearize(mod, simflags = "-s=euler -emit_protected")
+        @test result isa OMJulia.LinearizationResult
+        @test length(collect(result)) == 4
     finally
         OMJulia.quit(mod)
     end

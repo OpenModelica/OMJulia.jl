@@ -38,9 +38,12 @@ module OMJulia
     # getMethods
     export getParameters, getQuantities, showQuantities, getInputs, getOutputs, getSimulationOptions, getSolutions, getSolutionNames, getContinuous, getWorkDirectory
     # setMethods
-    export setInputs, setParameters, setSimulationOptions
+    export setInputs, setParameters, setContinuous, setSimulationOptions, setWorkDirectory
+    export isParameterChangeable
     # simulation
     export simulate, buildModel
+    # FMI
+    export convertMo2Fmu, convertFmu2Mo
     # Linearizion
     export linearize, getLinearInputs, getLinearOutputs, getLinearStates, getLinearizationOptions, setLinearizationOptions
     # sensitivity analysis

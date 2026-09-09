@@ -95,7 +95,7 @@ function ModelicaSystem(omc::OMCSession,
     end
 
     #set temp directory for each modelica session
-    setTempDirectory(omc, customBuildDirectory)
+    setWorkDirectory(omc, customBuildDirectory)
 
     #load Libraries provided by users
     loadLibrary(omc, library)
@@ -173,7 +173,22 @@ function loadFile(omc::OMCSession, filename::AbstractString)
     end
 end
 
-function setTempDirectory(omc::OMCSession, customBuildDirectory::Union{<:AbstractString,Nothing}=nothing)
+"""
+    setWorkDirectory(omc, customBuildDirectory=nothing)
+
+Set the directory the model is built and simulated in.
+
+Pass nothing for a fresh temporary directory, which is what
+[`ModelicaSystem`](@ref) does when it is not told otherwise.
+
+## Arguments
+
+- `omc::OMCSession`: OpenModelica compiler session.
+- `customBuildDirectory::Union{<:AbstractString, Nothing}`: An existing directory to work in.
+
+See also [`getWorkDirectory`](@ref).
+"""
+function setWorkDirectory(omc::OMCSession, customBuildDirectory::Union{<:AbstractString,Nothing}=nothing)
     if !isnothing(customBuildDirectory)
         if !isdir(customBuildDirectory)
             error("Directory does not exist  \"$(customBuildDirectory)\"")
@@ -660,6 +675,10 @@ function simulate(omc::OMCSession;
         omc.resultfile = replace(joinpath(omc.tempdir, resultfile), r"[/\\]+" => "/")
     end
 
+    # A previous run's result file left in place would be read back as this
+    # run's output if this run failed to write one.
+    rm(omc.resultfile, force = true)
+
     if isfile(omc.xmlfile)
         if Sys.iswindows()
             getexefile = replace(joinpath(omc.tempdir, join([omc.modelname,".exe"])), r"[/\\]+" => "/")
@@ -719,7 +738,12 @@ function simulate(omc::OMCSession;
                         run(pipeline(`$cmd`, stdout="log.txt", stderr="error.txt"))
                     end
                 end
-                # omc.resultfile=replace(joinpath(omc.tempdir,join([omc.modelname,"_res.mat"])),r"[/\\]+" => "/")
+                # An executable that exits successfully but writes nothing, or
+                # writes an empty file, has not simulated anything.
+                if !isfile(omc.resultfile) || filesize(omc.resultfile) == 0
+                    error("Simulation of $(omc.modelname) produced no result file at " *
+                          "\"$(omc.resultfile)\".")
+                end
                 omc.simulationFlag = true
             finally
                 cd(omc.currentdir)
@@ -733,7 +757,7 @@ end
 """
 function which converts modelica model to FMU
 
-    convertMo2FMU(omc; version::String = "2.0", fmuType::String = "me_cs", fileNamePrefix::String = "<default>", includeResources::Bool = true)
+    convertMo2Fmu(omc; version::String = "2.0", fmuType::String = "me_cs", fileNamePrefix::String = "<default>", includeResources::Bool = true)
 
 ## Arguments
 
@@ -748,10 +772,10 @@ function which converts modelica model to FMU
 ## Examples
 
 ```julia
-convertMo2FMU(omc)
+convertMo2Fmu(omc)
 ```
 """
-function convertMo2FMU(omc; version::String = "2.0", fmuType::String = "me_cs", fileNamePrefix::String = "<default>", includeResources::Bool = true)
+function convertMo2Fmu(omc; version::String = "2.0", fmuType::String = "me_cs", fileNamePrefix::String = "<default>", includeResources::Bool = true)
 
     if fileNamePrefix == "<default>"
         fileNamePrefix = omc.modelname
@@ -1043,17 +1067,25 @@ Set parameter values for parameter variables defined by users.
 An unknown parameter name is an error: a typo would otherwise simulate the
 model with its default value and say nothing.
 """
-function setParameters(omc::OMCSession, parameters::AbstractDict; verbose::Bool = true)
+function setParameters(omc::OMCSession, parameters::AbstractDict;
+                       verbose::Union{Bool, Nothing} = nothing)
+    if !isnothing(verbose)
+        Base.depwarn("`verbose` no longer does anything: setParameters raises instead of logging.", :setParameters)
+    end
     for (name, value) in parameters
         parameter = string(name)
         newValue = string(value)
         if !haskey(omc.parameterlist, parameter)
             error("\"$parameter\" is not a parameter")
         end
-        if isParameterChangeable(omc, parameter, newValue; verbose = verbose)
-            omc.parameterlist[parameter] = newValue
-            omc.overridevariables[parameter] = newValue
+        if !isParameterChangeable(omc, parameter)
+            error("\"$parameter\" cannot be changed: it is structural, final, protected " *
+                  "or evaluated, or has a non-constant binding. Use " *
+                  "sendExpression(omc, \"setParameterValue($(omc.modelname), $parameter, $newValue)\", parsed = false) " *
+                  "and rebuild the model with buildModel().")
         end
+        omc.parameterlist[parameter] = newValue
+        omc.overridevariables[parameter] = newValue
     end
     return nothing
 end
@@ -1069,26 +1101,68 @@ setParameters(omc, Dict("a" => 3, "V" => 200))
 """
 function setParameters(omc::OMCSession,
                        name::Union{<:AbstractString, AbstractVector{<:AbstractString}};
-                       verbose::Bool = true)
+                       verbose::Union{Bool, Nothing} = nothing)
     Base.depwarn("`setParameters(omc, \"name=value\")` is deprecated, use `setParameters(omc, Dict(\"name\" => value))` instead.", :setParameters)
     return setParameters(omc, keyValuePairs(name); verbose = verbose)
 end
 
 """
-check for parameter modifiable or not
+    isParameterChangeable(omc, name)
+
+Whether the parameter `name` can be overridden without rebuilding the model.
+
+A structural, final, protected or evaluated parameter cannot, nor can one with
+a non-constant binding.
+
+## Arguments
+
+- `omc::OMCSession`: OpenModelica compiler session.
+- `name::AbstractString`: Name of the parameter.
 """
-function isParameterChangeable(omc::OMCSession, name, value; verbose=true)
-    q = getQuantities(omc, String(name))
-    if isempty(q)
-        println(name, " does not exist in the model")
-        return false
-    elseif q[1]["changeable"] == "false"
-        if verbose
-            @warn "setParameters() failed: it is not possible to set \"$name\". It seems to be structural, final, protected or evaluated, or has a non-constant binding. Use sendExpression(setParameterValue($(omc.modelname), $name, $value), parsed=false) and rebuild the model with buildModel()."
+function isParameterChangeable(omc::OMCSession, name::AbstractString)::Bool
+    quantities = getQuantities(omc, String(name))
+    isempty(quantities) && return false
+    return quantities[1]["changeable"] != "false"
+end
+
+"""
+    setContinuous(omc, continuous)
+
+Set start values for continuous variables.
+
+## Arguments
+
+- `omc::OMCSession`: OpenModelica compiler session.
+- `continuous::AbstractDict`:  Variable names mapped to their new start
+                               values, e.g. `Dict("T" => 350)`.
+                               Values are converted with `string`.
+"""
+function setContinuous(omc::OMCSession, continuous::AbstractDict)
+    for (name, value) in continuous
+        variable = string(name)
+        newValue = string(value)
+        if !haskey(omc.continuouslist, variable)
+            error("\"$variable\" is not a continuous variable")
         end
-        return false
+        omc.continuouslist[variable] = newValue
+        omc.overridevariables[variable] = newValue
     end
-    return true
+    return nothing
+end
+
+"""
+    setContinuous(omc, name)
+
+Deprecated. Use the `AbstractDict` method of [`setContinuous`](@ref) instead:
+
+```julia
+setContinuous(omc, Dict("T" => 350))
+```
+"""
+function setContinuous(omc::OMCSession,
+                       name::Union{<:AbstractString, AbstractVector{<:AbstractString}})
+    Base.depwarn("`setContinuous(omc, \"name=value\")` is deprecated, use `setContinuous(omc, Dict(\"name\" => value))` instead.", :setContinuous)
+    return setContinuous(omc, keyValuePairs(name))
 end
 
 """
@@ -1352,9 +1426,67 @@ function createcsvdata(omc::OMCSession, startTime, stopTime)
 end
 
 """
-function which returns the linearize model of modelica model, The function returns four matrices A, B, C, D
+    LinearizationResult <: Any
 
+What [`linearize`](@ref) produced: the state space matrices, their dimensions,
+and the operating point they were taken at.
+
+`linearize` used to return only `[A, B, C, D]` and throw the rest away, even
+though it had already read it out of the generated model. Destructuring and
+indexing still mean what they did, so `A, B, C, D = linearize(omc)` and
+`linearize(omc)[1]` keep working.
+"""
+struct LinearizationResult
+    "Number of states"
+    n::Int
+    "Number of inputs"
+    m::Int
+    "Number of outputs"
+    p::Int
+    "State values at the operating point"
+    x0::Vector{Float64}
+    "Input values at the operating point"
+    u0::Vector{Float64}
+    "State matrix"
+    A::Matrix{Float64}
+    "Input matrix"
+    B::Matrix{Float64}
+    "Output matrix"
+    C::Matrix{Float64}
+    "Feedthrough matrix"
+    D::Matrix{Float64}
+    "Names of the state variables"
+    stateVars::Vector{String}
+    "Names of the input variables"
+    inputVars::Vector{String}
+    "Names of the output variables"
+    outputVars::Vector{String}
+end
+
+# A model with no states or no inputs gives an empty matrix that omc may have
+# written as something other than a Matrix.
+asStateSpaceMatrix(m) = m isa AbstractMatrix ? Matrix{Float64}(m) : Matrix{Float64}(undef, 0, 0)
+
+Base.length(::LinearizationResult) = 4
+Base.firstindex(::LinearizationResult) = 1
+Base.lastindex(::LinearizationResult) = 4
+
+function Base.getindex(result::LinearizationResult, i::Integer)
+    1 <= i <= 4 || throw(BoundsError(result, i))
+    return getfield(result, (:A, :B, :C, :D)[i])
+end
+
+Base.iterate(result::LinearizationResult, state::Int = 1) =
+    state > 4 ? nothing : (result[state], state + 1)
+
+"""
     linearize(omc; lintime = nothing, simflags= nothing, verbose=true)
+
+Linearize the model and return a [`LinearizationResult`](@ref).
+
+It destructures into the four state space matrices, `A, B, C, D =
+linearize(omc)`, which is what this returned before; the result also carries
+the dimensions and the operating point.
 
 ## Arguments
 
@@ -1489,10 +1621,19 @@ function linearize(omc::OMCSession; lintime = nothing, simflags= nothing, verbos
             ## to be evaluated at runtime, as Julia expects all functions should be known at the compilation time so efficient assembly code can be generated.
             result = invokelatest(linearized_model)
             (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
-            omc.linearization.linearstates = stateVars
-            omc.linearization.linearinputs = inputVars
-            omc.linearization.linearoutputs = outputVars
-            return [A, B, C, D]
+            # omc writes these as 1-row matrices as often as as vectors, so
+            # flatten them once here rather than leaving every caller to.
+            states = vec(String.(stateVars))
+            inputs = vec(String.(inputVars))
+            outputs = vec(String.(outputVars))
+            omc.linearization.linearstates = states
+            omc.linearization.linearinputs = inputs
+            omc.linearization.linearoutputs = outputs
+            return LinearizationResult(n, m, p,
+                                       vec(Float64.(x0)), vec(Float64.(u0)),
+                                       asStateSpaceMatrix(A), asStateSpaceMatrix(B),
+                                       asStateSpaceMatrix(C), asStateSpaceMatrix(D),
+                                       states, inputs, outputs)
         else
             errormsg = sendExpression(omc, "getErrorString()")
             error("\"$(omc.linearization.linearfile)\" not found \n$errormsg")
@@ -1555,7 +1696,7 @@ function getLinearOutputs(omc::OMCSession)
     if omc.linearization.linearFlag
         return omc.linearization.linearoutputs
     else
-        println("Model is not Linearized")
+        error("Model is not linearized")
     end
 end
 
@@ -1572,7 +1713,7 @@ function getLinearStates(omc::OMCSession)
     if omc.linearization.linearFlag
         return omc.linearization.linearstates
     else
-        println("Model is not Linearized")
+        error("Model is not linearized")
     end
 end
 
@@ -1644,4 +1785,26 @@ function setLinearizationOptions(omc::OMCSession,
                                  name::Union{<:AbstractString, AbstractVector{<:AbstractString}})
     Base.depwarn("`setLinearizationOptions(omc, \"stopTime=2.0\")` is deprecated, use `setLinearizationOptions(omc, stopTime = 2.0)` instead.", :setLinearizationOptions)
     return setLinearizationOptions(omc, keyValuePairs(name))
+end
+
+"""
+    setTempDirectory(omc, customBuildDirectory=nothing)
+
+Deprecated. Use [`setWorkDirectory`](@ref), which pairs with
+[`getWorkDirectory`](@ref).
+"""
+function setTempDirectory(omc::OMCSession, customBuildDirectory::Union{<:AbstractString,Nothing}=nothing)
+    Base.depwarn("`setTempDirectory` is deprecated, use `setWorkDirectory` instead.", :setTempDirectory)
+    return setWorkDirectory(omc, customBuildDirectory)
+end
+
+"""
+    convertMo2FMU(omc; kwargs...)
+
+Deprecated. Use [`convertMo2Fmu`](@ref), which is cased like
+[`convertFmu2Mo`](@ref).
+"""
+function convertMo2FMU(omc::OMCSession; kwargs...)
+    Base.depwarn("`convertMo2FMU` is deprecated, use `convertMo2Fmu` instead.", :convertMo2FMU)
+    return convertMo2Fmu(omc; kwargs...)
 end

@@ -82,6 +82,7 @@ In order to get the work directory use [`getWorkDirectory`](@ref).
 
 ```@docs
 getWorkDirectory
+setWorkDirectory
 ```
 
 ```@repl ModSeborgCSTRorg-example
@@ -181,7 +182,9 @@ getSolutions(mod, ["h"], resultfile="C:/BouncingBall/tmpbouncingBall.mat")
 ```@docs
 setInputs
 setParameters
+setContinuous
 setSimulationOptions
+isParameterChangeable
 ```
 
 ### Examples
@@ -200,6 +203,17 @@ setInputs(mod, Dict("cAi" => [(0, 100), (1, 50)]))
 ```@repl ModSeborgCSTRorg-example
 setParameters(mod, Dict("a" => 3))
 setParameters(mod, Dict("a" => 4, "V" => 200))
+```
+
+A parameter that omc cannot override -- a structural, final, protected or
+evaluated one, or one with a non-constant binding -- is an error rather than a
+warning, since the alternative is simulating with the old value and saying
+nothing. Ask first with `isParameterChangeable` if you need to.
+
+Continuous variables take start values the same way.
+
+```@repl ModSeborgCSTRorg-example
+setContinuous(mod, Dict("T" => 350))
 ```
 
 Simulation options are keyword arguments. `stepSize` is what the Modelica
@@ -246,6 +260,7 @@ simulate(mod)
 
 ```@docs
 linearize
+OMJulia.LinearizationResult
 getLinearizationOptions
 setLinearizationOptions
 getLinearInputs
@@ -272,6 +287,13 @@ res = linearize(mod)
 getLinearInputs(mod)
 getLinearOutputs(mod)
 getLinearStates(mod)
+```
+
+## FMI
+
+```@docs
+convertMo2Fmu
+convertFmu2Mo
 ```
 
 ## Sensitivity Analysis

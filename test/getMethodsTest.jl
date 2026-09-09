@@ -164,6 +164,71 @@ end
     end
 end
 
+# linearize used to return [A, B, C, D] and throw away the dimensions and the
+# operating point it had already read out of the generated model.
+@testset "Linearization" begin
+    workdir = abspath(joinpath(@__DIR__, "test-linearization"))
+    rm(workdir, recursive=true, force=true)
+    mkpath(workdir)
+
+    mod = OMJulia.OMCSession()
+    try
+        OMJulia.ModelicaSystem(mod,
+                               joinpath(@__DIR__, "..", "docs", "testmodels", "ModSeborgCSTRorg.mo"),
+                               "ModSeborgCSTRorg",
+                               customBuildDirectory = workdir)
+
+        # Asking before linearizing fails the same way for all three.
+        @test_throws ErrorException OMJulia.getLinearInputs(mod)
+        @test_throws ErrorException OMJulia.getLinearOutputs(mod)
+        @test_throws ErrorException OMJulia.getLinearStates(mod)
+
+        OMJulia.setLinearizationOptions(mod, stopTime = 1.0)
+        result = OMJulia.linearize(mod)
+
+        @test result isa OMJulia.LinearizationResult
+        @test result.n == length(result.x0)
+        @test size(result.A) == (result.n, result.n)
+        @test result.stateVars isa Vector{String}
+
+        # The old spelling still works.
+        A, B, C, D = result
+        @test A == result.A
+        @test D == result.D
+        @test result[1] == result.A
+        @test length(result) == 4
+        @test_throws BoundsError result[5]
+
+        @test OMJulia.getLinearStates(mod) == result.stateVars
+        @test OMJulia.getLinearInputs(mod) isa Vector
+        @test OMJulia.getLinearOutputs(mod) isa Vector
+    finally
+        OMJulia.quit(mod)
+    end
+end
+
+@testset "Continuous start values and unchangeable parameters" begin
+    mod = OMJulia.OMCSession()
+    try
+        OMJulia.ModelicaSystem(mod,
+                               joinpath(@__DIR__, "..", "docs", "testmodels", "ModSeborgCSTRorg.mo"),
+                               "ModSeborgCSTRorg")
+
+        OMJulia.setContinuous(mod, Dict("T" => 355))
+        @test OMJulia.getContinuous(mod, "T") == "355"
+        @test_throws ErrorException OMJulia.setContinuous(mod, Dict("nosuchvariable" => 1))
+
+        # k0 has a non-constant binding, so it cannot be overridden. That used
+        # to warn and carry on, leaving the model to simulate with the old
+        # value and say nothing about it.
+        @test !OMJulia.isParameterChangeable(mod, "k0")
+        @test OMJulia.isParameterChangeable(mod, "V")
+        @test_throws ErrorException OMJulia.setParameters(mod, Dict("k0" => 1))
+    finally
+        OMJulia.quit(mod)
+    end
+end
+
 @testset "ModelicaSystem rejects what it cannot build" begin
     mod = OMJulia.OMCSession()
     try
