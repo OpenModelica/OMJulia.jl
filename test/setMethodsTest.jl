@@ -114,6 +114,16 @@ end
     @test_throws ErrorException OMJulia.inputValue("(0, 0)")
 end
 
+@testset "Paths sent to omc" begin
+    # A Modelica string literal treats a backslash as an escape, so a Windows
+    # path handed to omc as-is names a different file, or none.
+    @test OMJulia.omcPath("C:\\Users\\me\\res.mat") == "C:/Users/me/res.mat"
+    @test OMJulia.omcPath("D:\\a\\OMJulia.jl\\test\\res.mat") == "D:/a/OMJulia.jl/test/res.mat"
+    @test OMJulia.omcPath("/tmp/res.mat") == "/tmp/res.mat"
+    # Mixed and repeated separators collapse to one.
+    @test OMJulia.omcPath("C:/Users\\me//res.mat") == "C:/Users/me/res.mat"
+end
+
 @testset "Result file checks" begin
     # An empty path means the model was never simulated, and says so.
     @test_throws "Model not Simulated" OMJulia.checkResultFile("")

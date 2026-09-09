@@ -923,6 +923,17 @@ function keyValuePairs(assignments::Union{<:AbstractString, AbstractVector{<:Abs
 end
 
 """
+    omcPath(path)
+
+Rewrite `path` the way omc wants to read it.
+
+An expression sent to omc is Modelica source, and a backslash inside a
+Modelica string literal is an escape. A Windows path handed over as-is
+therefore names a different file, or no file at all.
+"""
+omcPath(path::AbstractString) = replace(path, r"[/\\]+" => "/")
+
+"""
 Throw a helpful error if `resultfile` cannot be read.
 """
 function checkResultFile(resultfile::AbstractString)
@@ -957,6 +968,7 @@ function getSolutionNames(omc::OMCSession;
 
     resfile = isnothing(resultfile) ? omc.resultfile : resultfile
     checkResultFile(resfile)
+    resfile = omcPath(resfile)
 
     variables = sendExpression(omc, "readSimulationResultVars(\"" * resfile * "\")")
     sendExpression(omc, "closeSimulationResultFile()")
@@ -1034,6 +1046,7 @@ function getSolutions(omc::OMCSession,
 
     resfile = isnothing(resultfile) ? omc.resultfile : resultfile
     variables = solutionVariables(name, getSolutionNames(omc; resultfile = resfile))
+    resfile = omcPath(resfile)
 
     resultvar = string("{", join(variables, ","), "}")
     simres = sendExpression(omc, "readSimulationResult(\"" * resfile * "\"," * resultvar * ")")
