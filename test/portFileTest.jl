@@ -28,6 +28,7 @@ CONDITIONS OF OSMC-PL.
 
 using Test
 import OMJulia
+import ZMQ
 
 # A stand-in for omc: a process that never writes a port file. Julia itself, so
 # these tests need no OpenModelica installation.
@@ -139,5 +140,60 @@ end
         buffer = IOBuffer()
         showerror(buffer, OMJulia.TimeoutError("the port file never showed up"))
         @test occursin("the port file never showed up", String(take!(buffer)))
+    end
+end
+
+# omc writes its port file before it is necessarily serving on that port, so
+# the first request could be accepted and never answered.
+# See https://github.com/OpenModelica/OMJulia.jl/issues/39
+@testset "Connecting to omc" begin
+    @testset "Returns a blocking socket once omc answers" begin
+        context = ZMQ.Context()
+        server = ZMQ.Socket(context, ZMQ.REP)
+        try
+            ZMQ.bind(server, "tcp://127.0.0.1:*")
+            answering = @async begin
+                ZMQ.recv(server)
+                ZMQ.send(server, "\"1.25.0\"")
+            end
+
+            socket = OMJulia.connectToOMC(context, strip(server.last_endpoint),
+                                          timeout_ms = 5000)
+            try
+                # A simulation may take minutes, so only the handshake is on a
+                # deadline.
+                @test socket.rcvtimeo == -1
+                wait(answering)
+            finally
+                close(socket)
+            end
+        finally
+            close(server)
+            close(context)
+        end
+    end
+
+    @testset "Gives up with an error rather than blocking for good" begin
+        context = ZMQ.Context()
+        try
+            # Bound and then closed, so the port answers nothing.
+            probe = ZMQ.Socket(context, ZMQ.REP)
+            ZMQ.bind(probe, "tcp://127.0.0.1:*")
+            endpoint = strip(probe.last_endpoint)
+            close(probe)
+
+            started = time()
+            # Every attempt gets a fresh socket. Reusing the timed-out one
+            # would fail on the second send with a ZeroMQ state error rather
+            # than reaching this error, since a REQ socket cannot send twice
+            # in a row.
+            @test_throws ErrorException OMJulia.connectToOMC(context, endpoint,
+                                                             attempts = 3,
+                                                             timeout_ms = 200)
+            # Three attempts of 200 ms, not an unbounded wait.
+            @test time() - started < 30
+        finally
+            close(context)
+        end
     end
 end

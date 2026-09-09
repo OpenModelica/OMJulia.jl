@@ -47,4 +47,21 @@ jobs:
       - name: "Test OMJulia"
         uses: julia-actions/julia-runtest@v1
         with:
-          coverage: false
+          # Instrumenting the whole matrix would upload four near-identical
+          # reports and slow every job down. One platform is enough to see
+          # what the tests reach.
+          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.julia-version == '1.12' }}
+
+      - name: "Collect coverage"
+        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1.12'
+        uses: julia-actions/julia-processcoverage@v1
+
+      - name: "Upload coverage to Codecov"
+        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1.12'
+        uses: codecov/codecov-action@v5
+        with:
+          files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          # A pull request from a fork cannot see the token. Report what it
+          # can and leave the run green either way.
+          fail_ci_if_error: false
