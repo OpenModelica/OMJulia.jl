@@ -890,7 +890,7 @@ function keyValuePairs(assignments::Union{<:AbstractString, AbstractVector{<:Abs
     for assignment in (assignments isa AbstractString ? (assignments,) : assignments)
         stripped = filter(!isspace, assignment)
         separator = findfirst(isequal('='), stripped)
-        if isnothing(separator)
+        if isnothing(separator) || separator == firstindex(stripped)
             error("\"$assignment\" is not a \"name=value\" assignment")
         end
         pairs[stripped[1:prevind(stripped, separator)]] = stripped[nextind(stripped, separator):end]
@@ -914,10 +914,11 @@ end
 """
     getSolutionNames(omc::OMCSession; resultfile=nothing)
 
-Return the names of every variable stored in the result file.
+Return the names of the variables stored in the result file.
 
 `time` is not part of the list: it is the independent variable, and
-[`getSolutions`](@ref) always returns it.
+[`getSolutions`](@ref) always returns it. Neither are omc's internal
+`\$`-prefixed names, which cannot be read back.
 
 ## Arguments
 
@@ -928,7 +929,7 @@ Return the names of every variable stored in the result file.
 - `resultfile::Union{AbstractString, Nothing}`:     Path to result file. If nothing is provided use saved result file.
 """
 function getSolutionNames(omc::OMCSession;
-                              resultfile::Union{AbstractString, Nothing} = nothing)::Vector{String}
+                          resultfile::Union{AbstractString, Nothing} = nothing)::Vector{String}
 
     resfile = isnothing(resultfile) ? omc.resultfile : resultfile
     checkResultFile(resfile)
@@ -936,7 +937,47 @@ function getSolutionNames(omc::OMCSession;
     variables = sendExpression(omc, "readSimulationResultVars(\"" * resfile * "\")")
     sendExpression(omc, "closeSimulationResultFile()")
 
-    return String.(variables)
+    # Names starting with `$` are omc bookkeeping rather than model variables,
+    # and asking for one makes the read fail. `time` is the independent
+    # variable, not something to ask for.
+    return filter(variable -> !startswith(variable, '$') && variable != "time",
+                  String.(variables))
+end
+
+"""
+    solutionVariables(name, available)
+
+Work out which columns [`getSolutions`](@ref) should read, given what the
+caller asked for and what the result file holds.
+
+`time` comes first and appears once, whatever the caller asked for; every
+other name is checked against `available`. Passing `nothing` means every
+variable in the file.
+"""
+function solutionVariables(name::Union{<:AbstractString, AbstractVector{<:AbstractString}, Nothing},
+                           available::AbstractVector{<:AbstractString})::Vector{String}
+
+    variables = if isnothing(name)
+        # These came out of the result file, so there is nothing to check.
+        String.(available)
+    else
+        requested = name isa AbstractString ? [String(name)] : String.(name)
+        known = Set(available)
+        for variable in requested
+            if variable != "time" && !(variable in known)
+                error("'$variable' not found in simulation results")
+            end
+        end
+        requested
+    end
+
+    # Every other column is indexed by time, so time is never optional and
+    # never duplicated, however the caller spelled the request.
+    filter!(!isequal("time"), variables)
+    unique!(variables)
+    pushfirst!(variables, "time")
+
+    return variables
 end
 
 """
@@ -952,7 +993,9 @@ returned frame stands on its own.
 
 - `omc::OMCSession`:        OpenModelica compiler session.
 - `name::Union{<:AbstractString, AbstractVector{<:AbstractString}, Nothing}`:  Names of variables to read from result file.
-                                                                              If nothing is provided read all variables.
+                                                                              If nothing is provided read all variables,
+                                                                              parameters included, which for a large model
+                                                                              is a large read.
 
 ## Keyword Arguments
 
@@ -966,28 +1009,7 @@ function getSolutions(omc::OMCSession,
                       resultfile::Union{AbstractString, Nothing} = nothing)::DataFrames.DataFrame
 
     resfile = isnothing(resultfile) ? omc.resultfile : resultfile
-    available = getSolutionNames(omc; resultfile = resfile)
-
-    variables = if isnothing(name)
-        # Names starting with `$` are omc bookkeeping, not model variables,
-        # and asking for them makes the read fail.
-        filter(variable -> !startswith(variable, '$'), available)
-    elseif name isa AbstractString
-        [String(name)]
-    else
-        String.(name)
-    end
-
-    for variable in variables
-        if variable != "time" && !(variable in available)
-            error("'$variable' not found in simulation results")
-        end
-    end
-
-    # Every other column is indexed by time, so time is never optional and
-    # never duplicated, however the caller spelled the request.
-    filter!(!isequal("time"), variables)
-    pushfirst!(variables, "time")
+    variables = solutionVariables(name, getSolutionNames(omc; resultfile = resfile))
 
     resultvar = string("{", join(variables, ","), "}")
     simres = sendExpression(omc, "readSimulationResult(\"" * resfile * "\"," * resultvar * ")")
@@ -1062,7 +1084,7 @@ function isParameterChangeable(omc::OMCSession, name, value; verbose=true)
         return false
     elseif q[1]["changeable"] == "false"
         if verbose
-            println("| info |  setParameters() failed : It is not possible to set the following signal ", "\"", name, "\"", ", It seems to be structural, final, protected or evaluated or has a non-constant binding, use sendExpression(setParameterValue(", omc.modelname, ", ", name, ", ", value, "), parsed=false)", " and rebuild the model using buildModel() API")
+            @warn "setParameters() failed: it is not possible to set \"$name\". It seems to be structural, final, protected or evaluated, or has a non-constant binding. Use sendExpression(setParameterValue($(omc.modelname), $name, $value), parsed=false) and rebuild the model with buildModel()."
         end
         return false
     end
@@ -1150,9 +1172,13 @@ Normalize a value handed to [`setInputs`](@ref) into what `createcsvdata`
 expects: either a string holding a constant, or a vector of `[time, value]`
 points.
 """
-inputValue(value) = string(value)
+inputValue(value::Real) = string(value)
 
 inputValue(value::AbstractVector) = [timeValuePoint(value, point) for point in value]
+
+function inputValue(value)
+    error("an input value must be a number or a vector of (time, value) points, not a $(typeof(value))")
+end
 
 """
 Turn one `(time, value)` element of a time table into `[time, value]`.
@@ -1162,13 +1188,13 @@ mistake worth naming, since a bare vector of numbers would otherwise be read
 as a list of points that each repeat themselves.
 """
 function timeValuePoint(value::AbstractVector, point)
-    if point isa Pair
-        return Any[point.first, point.second]
+    pair = point isa Pair ? (point.first, point.second) :
+           (point isa Tuple || point isa AbstractVector) && length(point) == 2 ?
+               (point[1], point[2]) : nothing
+    if isnothing(pair) || !all(entry -> entry isa Real, pair)
+        error("$value is not a vector of (time, value) points with numeric entries")
     end
-    if (point isa Tuple || point isa AbstractVector) && length(point) == 2
-        return Any[point[1], point[2]]
-    end
-    error("$value is not a vector of (time, value) points")
+    return Any[pair[1], pair[2]]
 end
 
 function inputValue(value::AbstractString)

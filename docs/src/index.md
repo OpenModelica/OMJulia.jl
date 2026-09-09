@@ -60,3 +60,6 @@ Internal, and free to change in any release:
 
   - `OMJulia.Parser` and `OMJulia.lexer`
   - the fields of `OMJulia.OMCSession` and `OMJulia.ZMQSession`
+  - the element type of the dictionaries the get methods return. They are
+    returned by reference today; treat them as read-only and do not rely on
+    them being `Dict{Any, Any}`

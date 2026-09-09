@@ -48,6 +48,32 @@ using Test
 
     @test_throws ErrorException OMJulia.keyValuePairs("a")
     @test_throws ErrorException OMJulia.keyValuePairs(["a=3", "b"])
+
+    # An empty name is a malformed assignment, not a parameter called "".
+    @test_throws ErrorException OMJulia.keyValuePairs("=3")
+end
+
+@testset "Solution variables" begin
+    available = ["a", "b", "h"]
+
+    # No name in particular means everything the result file holds.
+    @test OMJulia.solutionVariables(nothing, available) == ["time", "a", "b", "h"]
+
+    # time leads, once, however it was asked for -- or not asked for.
+    @test OMJulia.solutionVariables("a", available) == ["time", "a"]
+    @test OMJulia.solutionVariables(["a", "time"], available) == ["time", "a"]
+    @test OMJulia.solutionVariables(["time", "a"], available) == ["time", "a"]
+    @test OMJulia.solutionVariables("time", available) == ["time"]
+    @test OMJulia.solutionVariables(String[], available) == ["time"]
+
+    # A repeated name would make DataFrame throw on duplicate columns.
+    @test OMJulia.solutionVariables(["a", "a"], available) == ["time", "a"]
+
+    # The caller's order survives, since that is the column order they get.
+    @test OMJulia.solutionVariables(["h", "a"], available) == ["time", "h", "a"]
+
+    @test_throws ErrorException OMJulia.solutionVariables("nope", available)
+    @test_throws ErrorException OMJulia.solutionVariables(["a", "nope"], available)
 end
 
 @testset "Input values" begin
@@ -72,6 +98,13 @@ end
     # points.
     @test_throws ErrorException OMJulia.inputValue([1, 2, 3])
     @test_throws ErrorException OMJulia.inputValue([(0, 0, 0)])
+    @test_throws ErrorException OMJulia.inputValue([(0, "x")])
+    @test_throws ErrorException OMJulia.inputValue([0 => 0, 1])
+
+    # And nothing else reaches createcsvdata as text either.
+    @test_throws ErrorException OMJulia.inputValue(nothing)
+    @test_throws ErrorException OMJulia.inputValue(:foo)
+    @test_throws ErrorException OMJulia.inputValue(Dict("a" => 1))
 
     # Nothing that is not a literal time table gets through. createcsvdata
     # used to eval whatever Meta.parse returned here.
