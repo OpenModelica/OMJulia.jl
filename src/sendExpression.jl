@@ -35,6 +35,27 @@ around the loop again. It only bounds how long we can sit in an unreturnable
 const RECEIVE_POLL_INTERVAL_MS = 500
 
 """
+What `zmq_strerror` says when there is no error, which is what a cleared errno
+renders as.
+"""
+const NO_ZMQ_ERROR = Libc.strerror(0)
+
+"""
+    isSpuriousStateError(err)
+
+Whether `err` is ZMQ reporting an error that is not one.
+
+`ZMQ._recv!` reads `zmq_errno()` on the line after the `zmq_msg_recv` that
+failed. Under an interpreter -- Debugger.jl, or the VS Code Julia extension --
+enough Julia runs between those two calls to clear errno, so an ordinary "no
+message yet" comes back as a `StateError` naming no error at all. A real
+`StateError` names a real one.
+
+See https://github.com/OpenModelica/OMJulia.jl/issues/66
+"""
+isSpuriousStateError(err) = err isa ZMQ.StateError && err.msg == NO_ZMQ_ERROR
+
+"""
     receiveMessage(omc, expr, timeout)
 
 Wait for omc's reply to `expr`.
@@ -70,7 +91,13 @@ function receiveMessage(omc::OMCSession, expr::AbstractString, timeout::Union{Re
             try
                 return ZMQ.Sockets.recv(socket)
             catch err
-                err isa ZMQ.TimeoutError || rethrow()
+                if isSpuriousStateError(err)
+                    # Not an error, just an empty poll wearing one. Give omc a
+                    # moment rather than spinning on it.
+                    sleep(0.01)
+                elseif !(err isa ZMQ.TimeoutError)
+                    rethrow()
+                end
                 if !process_running(omc.zmqSession.omcprocess)
                     error("omc exited while waiting for a reply to `$(expr)`. " *
                           "The session is dead; create a new OMCSession. " *

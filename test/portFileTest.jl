@@ -197,3 +197,35 @@ end
         end
     end
 end
+
+# ZMQ reports "no message yet" as an error naming no error when Julia runs
+# between the failed recv and the errno read, which is what an interpreter
+# does. See https://github.com/OpenModelica/OMJulia.jl/issues/66
+@testset "Telling a real ZMQ error from a cleared errno" begin
+    @test OMJulia.isSpuriousStateError(ZMQ.StateError(Libc.strerror(0)))
+    @test !OMJulia.isSpuriousStateError(
+        ZMQ.StateError("Operation cannot be accomplished in current state"))
+    @test !OMJulia.isSpuriousStateError(ZMQ.StateError("Resource temporarily unavailable"))
+    @test !OMJulia.isSpuriousStateError(ErrorException(Libc.strerror(0)))
+end
+
+# omc's stdout must go somewhere that cannot fill up. It used to be a pipe
+# nobody read, so a chatty run -- `-d=dumpSimCode`, say -- filled the 64 KiB
+# buffer and blocked omc forever with the caller waiting on a reply that could
+# never come. See https://github.com/OpenModelica/OMJulia.jl/issues/59
+@testset "omc output is not left in an unread pipe" begin
+    if !Sys.islinux()
+        @info "Skipping: reading a process's file descriptors needs /proc."
+    else
+        omc = OMJulia.OMCSession()
+        try
+            pid = getpid(omc.zmqSession.omcprocess)
+            for fd in (1, 2)
+                target = readlink("/proc/$(pid)/fd/$(fd)")
+                @test !startswith(target, "pipe:")
+            end
+        finally
+            OMJulia.quit(omc)
+        end
+    end
+end
