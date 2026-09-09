@@ -43,3 +43,20 @@ The OMJulia package contains the following features:
   - All the API calls are communicated with the help of the sendExpression method
     implemented in a Julia module
   - The results are returned as strings
+
+## What is public
+
+From version 1.0.0 OMJulia follows [semantic versioning](https://semver.org/),
+so it is worth being explicit about what that covers.
+
+Public, and only broken in a new major version:
+
+  - the exported functions, and everything documented on the
+    [ModelicaSystem](modelicaSystem.md) and
+    [sendExpression](sendExpression.md) pages
+  - the [`OMJulia.API`](api.md) module
+
+Internal, and free to change in any release:
+
+  - `OMJulia.Parser` and `OMJulia.lexer`
+  - the fields of `OMJulia.OMCSession` and `OMJulia.ZMQSession`

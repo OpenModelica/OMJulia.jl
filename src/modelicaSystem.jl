@@ -514,9 +514,7 @@ function getContinuous(omc::OMCSession, name::Union{<:AbstractString, Array{<:Ab
                 ## failing for variables with $ sign
                 ## println(name)
                 try
-                    value = getSolutions(omc, name)
-                    value1 = value[1]
-                    omc.continuouslist[name] = value1[end]
+                    omc.continuouslist[name] = getSolutions(omc, name)[!, name][end]
                 catch Exception
                     println(Exception)
                 end
@@ -524,9 +522,7 @@ function getContinuous(omc::OMCSession, name::Union{<:AbstractString, Array{<:Ab
             return omc.continuouslist
         elseif isa(name, String)
             if haskey(omc.continuouslist, name)
-                value = getSolutions(omc, name)
-                value1 = value[1]
-                omc.continuouslist[name] = value1[end]
+                omc.continuouslist[name] = getSolutions(omc, name)[!, name][end]
                 return get(omc.continuouslist, name, 0)
             else
                 error("\"$name\" is not continuous")
@@ -535,10 +531,8 @@ function getContinuous(omc::OMCSession, name::Union{<:AbstractString, Array{<:Ab
             continuousvaluelist = Any[]
             for x in name
                 if haskey(omc.continuouslist, x)
-                    value = getSolutions(omc, x)
-                    value1 = value[1]
-                    omc.continuouslist[x] = value1[end]
-                    push!(continuousvaluelist, value1[end])
+                    omc.continuouslist[x] = getSolutions(omc, x)[!, x][end]
+                    push!(continuousvaluelist, omc.continuouslist[x])
                 else
                     error("\"$x\" is not continuous")
                 end
@@ -595,16 +589,12 @@ function getOutputs(omc::OMCSession, name::Union{<:AbstractString, Array{<:Abstr
     if omc.simulationFlag
         if isnothing(name)
             for name in keys(omc.outputlist)
-                value = getSolutions(omc, name)
-                value1 = value[1]
-                omc.outputlist[name] = value1[end]
+                omc.outputlist[name] = getSolutions(omc, name)[!, name][end]
             end
             return omc.outputlist
         elseif isa(name, String)
             if haskey(omc.outputlist, name)
-                value = getSolutions(omc, name)
-                value1 = value[1]
-                omc.outputlist[name] = value1[end]
+                omc.outputlist[name] = getSolutions(omc, name)[!, name][end]
                 return get(omc.outputlist, name, 0)
             else
                 error("\"$name\" is not an output variable")
@@ -613,10 +603,8 @@ function getOutputs(omc::OMCSession, name::Union{<:AbstractString, Array{<:Abstr
             valuelist = Any[]
             for x in name
                 if haskey(omc.outputlist, x)
-                    value = getSolutions(omc, x)
-                    value1 = value[1]
-                    omc.outputlist[x] = value1[end]
-                    push!(valuelist, value1[end])
+                    omc.outputlist[x] = getSolutions(omc, x)[!, x][end]
+                    push!(valuelist, omc.outputlist[x])
                 else
                     error("\"$x\" is not an output variable")
                 end
@@ -810,6 +798,16 @@ function convertFmu2Mo(omc::OMCSession, fmupath)
 end
 
 """
+Read `variables` from the current result file as plain column vectors, in the
+order asked for. `sensitivity` does array arithmetic on these, which a
+`DataFrame` does not support.
+"""
+function solutionColumns(omc::OMCSession, variables::AbstractVector{<:AbstractString})::Vector{Vector{Float64}}
+    solutions = getSolutions(omc, variables)
+    return [Float64.(solutions[!, variable]) for variable in variables]
+end
+
+"""
     sensitivity(omc::OMCSession, Vp, Vv, Ve=[1e-2])
 
 Method for computing numeric sensitivity of OpenModelica object.
@@ -845,32 +843,33 @@ function sensitivity(omc::OMCSession,
     par0 = [parse(Float64, pp) for pp in getParameters(omc, Vp)]
     # eXcitation parameters parX
     parX = [par0[i] * (1 + Ve[i]) for i in 1:nVp]
-    # Combine parameter names and parameter values into vector of strings
-    Vpar0 = [Vp[i] * "=$(par0[i])" for i in 1:nVp]
-    VparX = [Vp[i] * "=$(parX[i])" for i in 1:nVp]
+    # Nominal parameter values, to restore after every excitation
+    nominal = Dict(Vp[i] => par0[i] for i in 1:nVp)
     # Simulate nominal system
     simulate(omc)
     # Get nominal SOLutions of variabVes of interest (Vv), converted to 2D array
-    sol0 = getSolutions(omc, Vv)
+    sol0 = solutionColumns(omc, Vv)
     # Get vector of eXcited SOLutions (2D arrays), one for each parameter (Vp)
-    solX = Vector{Array{Array{Float64,1},1}}()
-    for p in VparX
+    solX = Vector{Vector{Vector{Float64}}}()
+    for i in 1:nVp
          # change to excited parameter
-        setParameters(omc, p)
+        setParameters(omc, Dict(Vp[i] => parX[i]))
          # simulate perturbed system
         simulate(omc)
          # get eXcited SOLutions (Vv) as 2D array, and append to list
-        push!(solX, getSolutions(omc, Vv))
+        push!(solX, solutionColumns(omc, Vv))
          # reset parameters to nominal values
-        setParameters(omc, Vpar0)
+        setParameters(omc, nominal)
     end
     ## Compute sensitivities and add to vector, one 2D array per parameter (Vp)
     VSname = Vector{Vector{String}}()
-    VSarray = Vector{Array{Array{Float64,1},1}}() # same shape as solX
+    VSarray = Vector{Vector{Vector{Float64}}}() # same shape as solX
     for (i, sol) in enumerate(solX)
         push!(VSarray, ((sol - sol0) / (par0[i] * Ve[i])))
         vsname = Vector{String}()
-        for j in 1:nVp
+        # One name per variable of interest: Vv and Vp need not be the same
+        # length, and it is Vv that indexes a row of the sensitivity array.
+        for j in eachindex(Vv)
             push!(vsname, "Sensitivity." * Vp[i] * "." * Vv[j])
         end
         push!(VSname, vsname)
@@ -879,120 +878,178 @@ function sensitivity(omc::OMCSession,
 end
 
 """
-    getSolutions(omc::OMCSession, name=nothing; resultfile=nothing)
+    keyValuePairs(assignments)
 
+Turn the `"name=value"` assignment form -- a single string or a vector of them
+-- into a `Dict{String, String}`.
 
-Read result file and return simulation results
+Only the first `=` separates name from value, so a value may contain one.
+"""
+function keyValuePairs(assignments::Union{<:AbstractString, AbstractVector{<:AbstractString}})::Dict{String, String}
+    pairs = Dict{String, String}()
+    for assignment in (assignments isa AbstractString ? (assignments,) : assignments)
+        stripped = filter(!isspace, assignment)
+        separator = findfirst(isequal('='), stripped)
+        if isnothing(separator)
+            error("\"$assignment\" is not a \"name=value\" assignment")
+        end
+        pairs[stripped[1:prevind(stripped, separator)]] = stripped[nextind(stripped, separator):end]
+    end
+    return pairs
+end
+
+"""
+Throw a helpful error if `resultfile` cannot be read.
+"""
+function checkResultFile(resultfile::AbstractString)
+    if isempty(resultfile)
+        error("Model not Simulated, Simulate the model to get the results")
+    end
+    if !isfile(resultfile)
+        error("Result file $(abspath(resultfile)) does not exist !")
+    end
+    return nothing
+end
+
+"""
+    getSolutionNames(omc::OMCSession; resultfile=nothing)
+
+Return the names of every variable stored in the result file.
+
+`time` is not part of the list: it is the independent variable, and
+[`getSolutions`](@ref) always returns it.
 
 ## Arguments
 
 - `omc::OMCSession`:        OpenModelica compiler session.
-- `name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing}`:  Names of variables to read from result file.
-                                                                        If nothing is provided read all variables.
 
 ## Keyword Arguments
 
 - `resultfile::Union{AbstractString, Nothing}`:     Path to result file. If nothing is provided use saved result file.
 """
-function getSolutions(omc::OMCSession,
-                      name::Union{<:AbstractString, Array{<:AbstractString,1}, Nothing} = nothing;
-                      resultfile::Union{AbstractString, Nothing} = nothing)
+function getSolutionNames(omc::OMCSession;
+                              resultfile::Union{AbstractString, Nothing} = nothing)::Vector{String}
 
-    if isnothing(resultfile )
-        resfile = omc.resultfile
-    else
-        resfile = resultfile
-    end
+    resfile = isnothing(resultfile) ? omc.resultfile : resultfile
+    checkResultFile(resfile)
 
-    # Error handling
-    if !isfile(resfile)
-        error("Result file $(abspath(resfile)) does not exist !")
-    end
-    if isempty(resfile)
-        error("Model not Simulated, Simulate the model to get the results")
-    end
-
-    # Read variables
-    simresultvars = sendExpression(omc, "readSimulationResultVars(\"" * resfile * "\")")
+    variables = sendExpression(omc, "readSimulationResultVars(\"" * resfile * "\")")
     sendExpression(omc, "closeSimulationResultFile()")
-    if isnothing(name)
-        return simresultvars
-    elseif isa(name, String)
-        if !(name in simresultvars) && name != "time"
-            error("'$name' not found in simulation results")
-        end
-        resultvar = join(["{",name,"}"])
-        simres = sendExpression(omc, "readSimulationResult(\"" * resfile * "\"," * resultvar * ")")
-        sendExpression(omc, "closeSimulationResultFile()")
-        return simres
-    elseif isa(name, Array)
-        for var in name
-            if !(var in simresultvars) && var != "time"
-                error("'$name' not found in simulation results")
-            end
-        end
-        resultvar = join(["{",join(name, ","),"}"])
-        # println(resultvar)
-        simres = sendExpression(omc, "readSimulationResult(\"" * resfile * "\"," * resultvar * ")")
-        sendExpression(omc, "closeSimulationResultFile()")
-        return simres
+
+    return String.(variables)
+end
+
+"""
+    getSolutions(omc::OMCSession, name=nothing; resultfile=nothing)
+
+Read the result file and return the simulation results as a
+`DataFrames.DataFrame`.
+
+`time` is always the first column, whether or not it was asked for, so the
+returned frame stands on its own.
+
+## Arguments
+
+- `omc::OMCSession`:        OpenModelica compiler session.
+- `name::Union{<:AbstractString, AbstractVector{<:AbstractString}, Nothing}`:  Names of variables to read from result file.
+                                                                              If nothing is provided read all variables.
+
+## Keyword Arguments
+
+- `resultfile::Union{AbstractString, Nothing}`:     Path to result file. If nothing is provided use saved result file.
+
+See also [`getSolutionNames`](@ref) to list what a result file holds
+without reading it.
+"""
+function getSolutions(omc::OMCSession,
+                      name::Union{<:AbstractString, AbstractVector{<:AbstractString}, Nothing} = nothing;
+                      resultfile::Union{AbstractString, Nothing} = nothing)::DataFrames.DataFrame
+
+    resfile = isnothing(resultfile) ? omc.resultfile : resultfile
+    available = getSolutionNames(omc; resultfile = resfile)
+
+    variables = if isnothing(name)
+        # Names starting with `$` are omc bookkeeping, not model variables,
+        # and asking for them makes the read fail.
+        filter(variable -> !startswith(variable, '$'), available)
+    elseif name isa AbstractString
+        [String(name)]
+    else
+        String.(name)
     end
+
+    for variable in variables
+        if variable != "time" && !(variable in available)
+            error("'$variable' not found in simulation results")
+        end
+    end
+
+    # Every other column is indexed by time, so time is never optional and
+    # never duplicated, however the caller spelled the request.
+    filter!(!isequal("time"), variables)
+    pushfirst!(variables, "time")
+
+    resultvar = string("{", join(variables, ","), "}")
+    simres = sendExpression(omc, "readSimulationResult(\"" * resfile * "\"," * resultvar * ")")
+    sendExpression(omc, "closeSimulationResultFile()")
+
+    if !(simres isa AbstractVector) || length(simres) != length(variables)
+        error("Reading $(join(variables, ", ")) from $(abspath(resfile)) failed: $simres")
+    end
+
+    # The parser hands back Any-typed vectors; broadcasting narrows each
+    # column to what it actually holds.
+    return DataFrames.DataFrame([identity.(column) for column in simres], variables)
+end
+
+"""
+    setParameters(omc, parameters; verbose=true)
+
+Set parameter values for parameter variables defined by users.
+
+## Arguments
+
+- `omc::OMCSession`: OpenModelica compiler session.
+- `parameters::AbstractDict`:  Parameter names mapped to their new values,
+                               e.g. `Dict("a" => 3, "V" => 200)`.
+                               Values are converted with `string`.
+
+## Keyword Arguments
+
+- `verbose::Bool`:     Explain why a parameter could not be changed.
+
+An unknown parameter name is an error: a typo would otherwise simulate the
+model with its default value and say nothing.
+"""
+function setParameters(omc::OMCSession, parameters::AbstractDict; verbose::Bool = true)
+    for (name, value) in parameters
+        parameter = string(name)
+        newValue = string(value)
+        if !haskey(omc.parameterlist, parameter)
+            error("\"$parameter\" is not a parameter")
+        end
+        if isParameterChangeable(omc, parameter, newValue; verbose = verbose)
+            omc.parameterlist[parameter] = newValue
+            omc.overridevariables[parameter] = newValue
+        end
+    end
+    return nothing
 end
 
 """
     setParameters(omc, name; verbose=true)
 
-Set parameter values for parameter variables defined by users
+Deprecated. Use the `AbstractDict` method of [`setParameters`](@ref) instead:
 
-## Arguments
-
-- `omc::OMCSession`: OpenModelica compiler session.
-- `name::Union{<:AbstractString, Array{<:AbstractString,1}}`:  String \"Name=value\" or
-                                                               vector of strings [\"Name1=value1\",\"Name2=value2\",\"Name3=value3\"])
-
-## Keyword Arguments
-
-- `verbose::Bool`:     Display additional info if setParameters failed.
+```julia
+setParameters(omc, Dict("a" => 3, "V" => 200))
+```
 """
 function setParameters(omc::OMCSession,
-                       name::Union{<:AbstractString, Array{<:AbstractString,1}};
+                       name::Union{<:AbstractString, AbstractVector{<:AbstractString}};
                        verbose::Bool = true)
-
-    if isa(name, String)
-        name = strip_space(name)
-        value = split(name, "=")
-        # setxmlfileexpr="setInitXmlStartValue(\""* this.xmlfile * "\",\""* value[1]* "\",\""*value[2]*"\",\""*this.xmlfile*"\")"
-        # println(haskey(this.parameterlist, value[1]))
-        if haskey(omc.parameterlist, value[1])
-            # should we use this ???
-            # setparameterValue = join(["setParameterValue(",omc.modelname,",", value[1],",",value[2],")"])
-            # println(setparameterValue)
-            if isParameterChangeable(omc, value[1], value[2])
-                omc.parameterlist[value[1]] = value[2]
-                omc.overridevariables[value[1]] = value[2]
-            end
-        else
-            if verbose
-                @info("setParameters() failed: \" $(value[1])\" is not a parameter")
-            end
-        end
-    # omc.sendExpression(setxmlfileexpr)
-    elseif isa(name, Array)
-        name = strip_space(name)
-        for var in name
-            value = split(var, "=")
-            if haskey(omc.parameterlist, value[1])
-                if isParameterChangeable(omc, value[1], value[2])
-                    omc.parameterlist[value[1]] = value[2]
-                    omc.overridevariables[value[1]] = value[2]
-                end
-            else
-                if verbose
-                    @info("setParameters() failed: \" $(value[1])\" is not a parameter")
-                end
-            end
-        end
-    end
+    Base.depwarn("`setParameters(omc, \"name=value\")` is deprecated, use `setParameters(omc, Dict(\"name\" => value))` instead.", :setParameters)
+    return setParameters(omc, keyValuePairs(name); verbose = verbose)
 end
 
 """
@@ -1013,92 +1070,169 @@ function isParameterChangeable(omc::OMCSession, name, value; verbose=true)
 end
 
 """
-    setSimulationOptions(omc, name)
+    setSimulationOptions(omc; startTime=nothing, stopTime=nothing, stepSize=nothing, tolerance=nothing, solver=nothing)
 
-Set simulation option values like `stopTime` or `stepSize`.
+Set simulation option values. Options left at `nothing` keep their current
+value.
 
 ## Arguments
 
 - `omc::OMCSession`: OpenModelica compiler session.
-- `name::Union{<:AbstractString, Array{<:AbstractString,1}}`:  String \"Name=value\" or
-                                                               vector of strings [\"Name1=value1\",\"Name2=value2\",\"Name3=value3\"])
+
+## Keyword Arguments
+
+- `startTime`:     Start time of the simulation.
+- `stopTime`:      Stop time of the simulation.
+- `stepSize`:      Step size of the output interval, `interval` in the
+                   Modelica `experiment` annotation.
+- `tolerance`:     Solver tolerance.
+- `solver`:        Name of the integration method, e.g. `"dassl"`.
 """
-function setSimulationOptions(omc::OMCSession, name::Union{<:AbstractString, Array{<:AbstractString,1}})
-    if isa(name, String)
-        name = strip_space(name)
-        value = split(name, "=")
-        if haskey(omc.simulateOptions, value[1])
-            omc.simulateOptions[value[1]] = value[2]
-            omc.simoptoverride[value[1]] = value[2]
-        else
-            error("\"$(value[1])\" is not a simulation option")
-        end
-    elseif isa(name, Array)
-        name = strip_space(name)
-        for var in name
-            value = split(var, "=")
-            if haskey(omc.simulateOptions, value[1])
-                omc.simulateOptions[value[1]] = value[2]
-                omc.simoptoverride[value[1]] = value[2]
-            else
-                error("\"$(value[1])\" is not a simulation option")
-            end
-        end
+function setSimulationOptions(omc::OMCSession;
+                              startTime = nothing,
+                              stopTime = nothing,
+                              stepSize = nothing,
+                              tolerance = nothing,
+                              solver = nothing)
+    options = Dict{String, Any}()
+    for (option, value) in ("startTime" => startTime,
+                            "stopTime" => stopTime,
+                            "stepSize" => stepSize,
+                            "tolerance" => tolerance,
+                            "solver" => solver)
+        isnothing(value) || (options[option] = value)
     end
+    return setSimulationOptions(omc, options)
 end
 
 """
-    setInputs(omc, name)
+    setSimulationOptions(omc, options)
+
+Set simulation option values from a `Dict`, e.g.
+`Dict("stopTime" => 2.0, "tolerance" => 1e-8)`.
+
+## Arguments
+
+- `omc::OMCSession`: OpenModelica compiler session.
+- `options::AbstractDict`:  Option names mapped to their new values.
+                            Values are converted with `string`.
+"""
+function setSimulationOptions(omc::OMCSession, options::AbstractDict)
+    for (name, value) in options
+        option = string(name)
+        if !haskey(omc.simulateOptions, option)
+            error("\"$option\" is not a simulation option")
+        end
+        omc.simulateOptions[option] = string(value)
+        omc.simoptoverride[option] = string(value)
+    end
+    return nothing
+end
+
+"""
+    setSimulationOptions(omc, name)
+
+Deprecated. Use the keyword arguments of [`setSimulationOptions`](@ref)
+instead:
+
+```julia
+setSimulationOptions(omc, stopTime = 2.0, tolerance = 1e-8)
+```
+"""
+function setSimulationOptions(omc::OMCSession,
+                              name::Union{<:AbstractString, AbstractVector{<:AbstractString}})
+    Base.depwarn("`setSimulationOptions(omc, \"stopTime=2.0\")` is deprecated, use `setSimulationOptions(omc, stopTime = 2.0)` instead.", :setSimulationOptions)
+    return setSimulationOptions(omc, keyValuePairs(name))
+end
+
+"""
+Normalize a value handed to [`setInputs`](@ref) into what `createcsvdata`
+expects: either a string holding a constant, or a vector of `[time, value]`
+points.
+"""
+inputValue(value) = string(value)
+
+inputValue(value::AbstractVector) = [timeValuePoint(value, point) for point in value]
+
+"""
+Turn one `(time, value)` element of a time table into `[time, value]`.
+
+Accepts a tuple, a pair or a two-element vector; anything else is a caller
+mistake worth naming, since a bare vector of numbers would otherwise be read
+as a list of points that each repeat themselves.
+"""
+function timeValuePoint(value::AbstractVector, point)
+    if point isa Pair
+        return Any[point.first, point.second]
+    end
+    if (point isa Tuple || point isa AbstractVector) && length(point) == 2
+        return Any[point[1], point[2]]
+    end
+    error("$value is not a vector of (time, value) points")
+end
+
+function inputValue(value::AbstractString)
+    parsed = Meta.parse(value)
+    parsed isa Expr || return String(value)
+    if parsed.head !== :vect
+        error("\"$value\" is not a constant or a vector of (time, value) points")
+    end
+    return [inputPoint(value, point) for point in parsed.args]
+end
+
+"""
+Turn one parsed `(time, value)` element of a time table into `[time, value]`.
+
+Only numeric literals are accepted. `createcsvdata` used to `eval` whatever
+came out of `Meta.parse` here, which ran arbitrary Julia from an input string.
+"""
+function inputPoint(value::AbstractString, point)
+    if !(point isa Expr && point.head === :tuple && length(point.args) == 2 &&
+         all(arg -> arg isa Number, point.args))
+        error("\"$value\" is not a vector of (time, value) points with numeric entries")
+    end
+    return Any[point.args[1], point.args[2]]
+end
+
+"""
+    setInputs(omc, inputs)
 
 Set new values for input variables.
 
 ## Arguments
 
 - `omc::OMCSession`: OpenModelica compiler session.
-- `name::Union{<:AbstractString, Array{<:AbstractString,1}}`:  String \"Name=value\" or
-                                                               vector of strings [\"Name1=value1\",\"Name2=value2\",\"Name3=value3\"])
+- `inputs::AbstractDict`:  Input names mapped to their new values, e.g.
+                           `Dict("cAi" => 100, "Ti" => 200)`.
+                           A value may also be a vector of `(time, value)`
+                           points, e.g. `Dict("cAi" => [(0, 100), (1, 50)])`,
+                           to vary the input over the simulation.
 """
-function setInputs(omc::OMCSession, name)
-    if isa(name, String)
-        name = strip_space(name)
-        value = split(name, "=")
-        if haskey(omc.inputlist, value[1])
-            newval = Meta.parse(value[2])
-            if isa(newval, Expr)
-                omc.inputlist[value[1]] = [v.args for v in newval.args]
-            else
-                omc.inputlist[value[1]] = value[2]
-            end
-            omc.inputFlag = true
-        else
-            error("$(value[1]) is not an input variable")
+function setInputs(omc::OMCSession, inputs::AbstractDict)
+    for (name, value) in inputs
+        input = string(name)
+        if !haskey(omc.inputlist, input)
+            error("$input is not an input variable")
         end
-    elseif isa(name, Array)
-        name = strip_space(name)
-        for var in name
-            value = split(var, "=")
-            if haskey(omc.inputlist, value[1])
-                newval = Meta.parse(value[2])
-                if isa(newval, Expr)
-                    omc.inputlist[value[1]] = [v.args for v in newval.args]
-                else
-                    omc.inputlist[value[1]] = value[2]
-                end
-                # omc.overridevariables[value[1]]=value[2]
-                omc.inputFlag = true
-            else
-                error("$(value[1]) is not an input variable")
-            end
-        end
+        omc.inputlist[input] = inputValue(value)
+        omc.inputFlag = true
     end
+    return nothing
 end
 
-function strip_space(name)
-    if isa(name, String)
-        return filter(x -> !isspace(x), name)
-    elseif isa(name, Array)
-        return [filter(x -> !isspace(x), s) for s in name]
-    end
+"""
+    setInputs(omc, name)
+
+Deprecated. Use the `AbstractDict` method of [`setInputs`](@ref) instead:
+
+```julia
+setInputs(omc, Dict("cAi" => 100))
+```
+"""
+function setInputs(omc::OMCSession,
+                   name::Union{<:AbstractString, AbstractVector{<:AbstractString}})
+    Base.depwarn("`setInputs(omc, \"name=value\")` is deprecated, use `setInputs(omc, Dict(\"name\" => value))` instead.", :setInputs)
+    return setInputs(omc, keyValuePairs(name))
 end
 
 """
@@ -1151,7 +1285,7 @@ function createcsvdata(omc::OMCSession, startTime, stopTime)
                 found = "false"
                 for v in newval
                     if i == v[1]
-                        data = eval(v[2])
+                        data = v[2]
                         write(file, join(data, ","), ",")
                         previousvalue[listcount] = data
                         deleteat!(newval, count)
@@ -1417,35 +1551,71 @@ function getLinearStates(omc::OMCSession)
 end
 
 """
-    setLinearizationOptions(omc, name)
+    setLinearizationOptions(omc; startTime=nothing, stopTime=nothing, stepSize=nothing, tolerance=nothing)
 
-Set linearization options.
+Set linearization options. Options left at `nothing` keep their current value.
 
 ## Arguments
 
 - `omc::OMCSession`:        OpenModelica compiler session.
-- `name::Union{<:AbstractString, Array{<:AbstractString,1}}`:  String \"Name=value\" or
-                                                               vector of strings [\"Name1=value1\",\"Name2=value2\",\"Name3=value3\"])
+
+## Keyword Arguments
+
+- `startTime`:     Start time of the linearization.
+- `stopTime`:      Stop time of the linearization.
+- `stepSize`:      Step size of the output interval.
+- `tolerance`:     Solver tolerance.
+"""
+function setLinearizationOptions(omc::OMCSession;
+                                 startTime = nothing,
+                                 stopTime = nothing,
+                                 stepSize = nothing,
+                                 tolerance = nothing)
+    options = Dict{String, Any}()
+    for (option, value) in ("startTime" => startTime,
+                            "stopTime" => stopTime,
+                            "stepSize" => stepSize,
+                            "tolerance" => tolerance)
+        isnothing(value) || (options[option] = value)
+    end
+    return setLinearizationOptions(omc, options)
+end
 
 """
-function setLinearizationOptions(omc::OMCSession, name)
-    if isa(name, String)
-        name = strip_space(name)
-        value = split(name, "=")
-        if haskey(omc.linearization.linearOptions, value[1])
-            omc.linearization.linearOptions[value[1]] = value[2]
-        else
-            error("\"$(value[1])\" is not a linearization option")
+    setLinearizationOptions(omc, options)
+
+Set linearization options from a `Dict`, e.g.
+`Dict("stopTime" => 2.0, "tolerance" => 1e-6)`.
+
+## Arguments
+
+- `omc::OMCSession`:        OpenModelica compiler session.
+- `options::AbstractDict`:  Option names mapped to their new values.
+                            Values are converted with `string`.
+"""
+function setLinearizationOptions(omc::OMCSession, options::AbstractDict)
+    for (name, value) in options
+        option = string(name)
+        if !haskey(omc.linearization.linearOptions, option)
+            error("\"$option\" is not a linearization option")
         end
-    elseif isa(name, Array)
-        name = strip_space(name)
-        for var in name
-            value = split(var, "=")
-            if haskey(omc.linearization.linearOptions, value[1])
-                omc.linearization.linearOptions[value[1]] = value[2]
-            else
-                error("\"$(value[1])\" is not a linearization option")
-            end
-        end
+        omc.linearization.linearOptions[option] = string(value)
     end
+    return nothing
+end
+
+"""
+    setLinearizationOptions(omc, name)
+
+Deprecated. Use the keyword arguments of [`setLinearizationOptions`](@ref)
+instead:
+
+```julia
+setLinearizationOptions(omc, stopTime = 2.0, tolerance = 1e-6)
+```
+"""
+function setLinearizationOptions(omc::OMCSession,
+                                 name::Union{<:AbstractString, AbstractVector{<:AbstractString}})
+    Base.depwarn("`setLinearizationOptions(omc, \"stopTime=2.0\")` is deprecated, use `setLinearizationOptions(omc, stopTime = 2.0)` instead.", :setLinearizationOptions)
+    return setLinearizationOptions(omc, keyValuePairs(name))
 end
