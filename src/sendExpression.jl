@@ -49,10 +49,24 @@ omc is running, which is what a long `simulate` needs.
 function receiveMessage(omc::OMCSession, expr::AbstractString, timeout::Union{Real, Nothing})
     socket = omc.zmqSession.socket
     previousTimeout = socket.rcvtimeo
-    socket.rcvtimeo = RECEIVE_POLL_INTERVAL_MS
     deadline = isnothing(timeout) ? nothing : time() + timeout
     try
         while true
+            # Never block past the caller's deadline. Polling on a fixed
+            # interval rounded every shorter timeout up to it, so a small
+            # `timeout` gave up late, or -- if omc answered inside the first
+            # poll -- not at all.
+            poll = RECEIVE_POLL_INTERVAL_MS
+            if !isnothing(deadline)
+                remaining = (deadline - time()) * 1000
+                if remaining <= 0
+                    error("No reply from omc for `$(expr)` after $(timeout) s. " *
+                          "omc is still running, so it may just be slow -- pass a " *
+                          "larger `timeout`, or `nothing` to wait indefinitely.")
+                end
+                poll = min(poll, max(1, ceil(Int, remaining)))
+            end
+            socket.rcvtimeo = poll
             try
                 return ZMQ.Sockets.recv(socket)
             catch err
