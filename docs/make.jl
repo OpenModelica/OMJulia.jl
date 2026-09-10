@@ -54,7 +54,8 @@ makedocs(
     "Quickstart" => "quickstart.md",
     "ModelicaSystem" => "modelicaSystem.md",
     "OMJulia.API" => "api.md",
-    "sendExpression" => "sendExpression.md"
+    "sendExpression" => "sendExpression.md",
+    "MSL coverage" => "mslCoverage.md"
   ],
   modules = [OMJulia],
   # A failing @example block used to render its own error text into the

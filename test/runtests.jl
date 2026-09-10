@@ -37,4 +37,5 @@ using Test
     @safetestset "ModelicaSystem" begin include("modelicaSystemTest.jl") end
     @safetestset "Get methods" begin include("getMethodsTest.jl") end
     @safetestset "API" begin include("apiTest.jl") end
+    @safetestset "FMI export/import" begin include("testFMIExport.jl") end
 end

@@ -32,6 +32,12 @@ jobs:
 
       - run: "omc --version"
 
+      - name: "Install zip"
+        if: runner.os == 'Windows'
+        # omc's buildModelFMU/importFMU shell out to `zip`, which is not on
+        # the windows-latest runner (it has 7-Zip, not a `zip.exe` on PATH).
+        run: choco install zip -y
+
       - name: "Set up Julia"
         uses: julia-actions/setup-julia@v2
         with:

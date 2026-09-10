@@ -26,28 +26,33 @@ EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
 CONDITIONS OF OSMC-PL.
 =#
 
-using Test
+# Prints, and (under CI) writes to $GITHUB_OUTPUT, the JSON array of MSL
+# areas the Nightly workflow's msl-coverage matrix should shard over.
+#
+#   julia listMslAreas.jl [msl-version]
+
+import Pkg; Pkg.activate(@__DIR__)
 import OMJulia
 
-@testset "testFMIExport" begin
-    workdir = abspath(joinpath(@__DIR__, "test_fmi_export"))
-    rm(workdir, recursive=true, force=true)
-    mkpath(workdir)
+include("enumerateExamples.jl")
 
-    mod = OMJulia.OMCSession()
-    OMJulia.ModelicaSystem(mod, modelName="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog", library="Modelica")
-    fmu1 = OMJulia.convertMo2Fmu(mod)
-    @test isfile(fmu1)
+version = length(ARGS) >= 1 ? ARGS[1] : "4.1.0"
 
-    OMJulia.ModelicaSystem(mod, modelName="Modelica.Fluid.Examples.DrumBoiler.DrumBoiler", library="Modelica")
-    fmu2 = OMJulia.convertMo2Fmu(mod)
-    @test isfile(fmu2)
+omc = OMJulia.OMCSession()
+local areas
+try
+  OMJulia.sendExpression(omc, "loadModel(Modelica, {\"$(version)\"})")
+  areas = mslAreasWithExamples(omc)
+finally
+  OMJulia.quit(omc)
+end
 
-    # The round trip back: convertFmu2Mo had no coverage at all before this,
-    # export only.
-    mofile = OMJulia.convertFmu2Mo(mod, fmu2)
-    @test isfile(mofile)
-    @test occursin("model", read(mofile, String))
+json = "[" * join(("\"" * a * "\"" for a in areas), ",") * "]"
+println("areas=", json)
 
-    OMJulia.quit(mod)
+out = get(ENV, "GITHUB_OUTPUT", nothing)
+if out !== nothing
+  open(out, "a") do io
+    println(io, "areas=", json)
+  end
 end
