@@ -27,67 +27,73 @@ CONDITIONS OF OSMC-PL.
 =#
 
 # A hand-maintained list of "the MSL models OMJulia covers" goes stale the
-# moment MSL changes. These two queries ask omc instead, so the sweep tracks
+# moment MSL changes. These queries ask omc instead, so the sweep tracks
 # whatever Modelica version CI actually has installed.
 
 import OMJulia
 
 """
-Direct children of `Modelica` that themselves contain an `Examples` package,
-e.g. "Blocks", "Electrical", "Fluid".
+Fully qualified names of every `Examples` package anywhere under `Modelica`,
+at any depth -- checked against a real omc + MSL 4.1.0: `Examples` sits
+directly under some areas (`Modelica.Blocks.Examples`) and one level deeper
+under others (`Modelica.Electrical.Analog.Examples`,
+`Modelica.Mechanics.MultiBody.Examples`). An earlier version of this file
+only looked one level down and silently missed Electrical, Mechanics,
+Magnetic, Math and Thermal entirely.
 """
-function mslAreasWithExamples(omc::OMJulia.OMCSession)
-  top = string.(OMJulia.sendExpression(omc,
-      "getClassNames(Modelica, recursive=false, qualified=false, builtin=false, showProtected=false)"))
-
-  areas = String[]
-  for name in top
-    children = try
-      string.(OMJulia.sendExpression(omc,
-          "getClassNames(Modelica.$(name), recursive=false, qualified=false, builtin=false, showProtected=false)"))
-    catch
-      String[]
-    end
-    if "Examples" in children
-      push!(areas, name)
-    end
-  end
-  return areas
+function allExamplesPackages(omc::OMJulia.OMCSession)
+  all = string.(OMJulia.sendExpression(omc,
+      "getClassNames(Modelica, recursive=true, qualified=true, builtin=false, showProtected=false)"))
+  return filter(name -> endswith(name, ".Examples"), all)
 end
 
 """
-Fully qualified names of everything simulatable under `Modelica.<area>.Examples`
--- restriction `model` or `block`, and not `partial`. This is a blind sweep:
-some non-partial classes under Examples exist to be extended rather than run
-directly, and will show up here and then fail to simulate. That is the sweep
-finding out, not a bug in the sweep.
+Direct children of `Modelica` that have an `Examples` package somewhere
+beneath them, e.g. "Blocks", "Electrical", "Mechanics" -- the areas the
+Nightly workflow's msl-coverage matrix shards over.
+"""
+function mslAreasWithExamples(omc::OMJulia.OMCSession)
+  packages = allExamplesPackages(omc)
+  areas = unique(String(split(p, ".")[2]) for p in packages)
+  return sort(areas)
+end
+
+"""
+Fully qualified names of everything simulatable under any `Modelica.<area>.*
+.Examples` package -- restriction `model` or `block`, and not `partial`.
+This is a blind sweep: some non-partial classes under Examples exist to be
+extended rather than run directly, and will show up here and then fail to
+simulate. That is the sweep finding out, not a bug in the sweep.
 """
 function exampleModels(omc::OMJulia.OMCSession, area::AbstractString)
-  full = "Modelica.$(area).Examples"
-  names = try
-    string.(OMJulia.sendExpression(omc,
-        "getClassNames($(full), recursive=true, qualified=true, builtin=false, showProtected=false)"))
-  catch
-    String[]
-  end
+  packages = filter(p -> split(p, ".")[2] == area, allExamplesPackages(omc))
 
   models = String[]
-  for name in names
-    restriction = try
-      string(OMJulia.sendExpression(omc, "getClassRestriction($(name))"))
+  for pkg in packages
+    names = try
+      string.(OMJulia.sendExpression(omc,
+          "getClassNames($(pkg), recursive=true, qualified=true, builtin=false, showProtected=false)"))
     catch
-      ""
+      String[]
     end
-    restriction in ("model", "block") || continue
 
-    partial = try
-      OMJulia.sendExpression(omc, "isPartial($(name))")
-    catch
-      true
+    for name in names
+      restriction = try
+        string(OMJulia.sendExpression(omc, "getClassRestriction($(name))"))
+      catch
+        ""
+      end
+      restriction in ("model", "block") || continue
+
+      partial = try
+        OMJulia.sendExpression(omc, "isPartial($(name))")
+      catch
+        true
+      end
+      partial && continue
+
+      push!(models, name)
     end
-    partial && continue
-
-    push!(models, name)
   end
   return models
 end

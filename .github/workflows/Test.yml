@@ -60,6 +60,21 @@ jobs:
           # uncovered for good. Codecov merges the two.
           coverage: ${{ matrix.julia-version == '1.12' }}
 
+      - name: "Install regression-test dependencies"
+        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1.12'
+        run: julia --project=regression-tests/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+
+      - name: "Test MSL example enumeration"
+        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1.12'
+        # Only omc's scripting API, no platform-specific session startup and
+        # nothing that shells out to a C compiler, so one job is enough. This
+        # is what caught allExamplesPackages/mslAreasWithExamples only
+        # looking one level under Modelica and silently missing Electrical,
+        # Mechanics, Magnetic, Math and Thermal -- worth running on every
+        # pull request rather than waiting for Nightly's msl-areas job to
+        # notice every third night.
+        run: julia --project=regression-tests/. regression-tests/enumerateExamplesTest.jl
+
       - name: "Collect coverage"
         if: matrix.julia-version == '1.12'
         uses: julia-actions/julia-processcoverage@v1
