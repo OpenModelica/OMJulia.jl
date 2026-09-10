@@ -49,8 +49,8 @@ The OMJulia package contains the following features:
 OMJulia forwards to omc, which supports the full Modelica language, so
 nothing here is a language limitation of OMJulia itself. What follows is
 narrower and more useful: the application areas actually exercised end to
-end (`ModelicaSystem`, `simulate`, `linearize`, FMU export/import), so that
-"it works" means more than "it loaded".
+end (`ModelicaSystem`, `simulate`, `linearize`, FMU export), so that "it
+works" means more than "it loaded".
 
 On every pull request, the test suite covers:
 
@@ -62,8 +62,13 @@ On every pull request, the test suite covers:
   - thermal-fluid systems — `Modelica.Fluid.Examples.DrumBoiler.DrumBoiler`
   - control blocks, and running two sessions at once —
     `Modelica.Blocks.Examples.PID_Controller`
-  - FMU export, and the FMU-to-Modelica round trip through
-    [`convertMo2Fmu`](modelicaSystem.md) / [`convertFmu2Mo`](modelicaSystem.md)
+  - FMU export through [`convertMo2Fmu`](modelicaSystem.md)
+
+[`convertFmu2Mo`](modelicaSystem.md), the FMU-to-Modelica direction, is not
+covered: a test for it failed against a real omc in CI (`importFMU` on a
+non-trivial FMU, with no diagnostic in `getErrorString()`) in a way that
+needs a maintainer with a working omc to debug rather than a guess from
+here. Treat it as unverified until someone does.
 
 Two broader, non-blocking sweeps run outside the pull-request gate:
 

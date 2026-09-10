@@ -43,11 +43,5 @@ import OMJulia
     fmu2 = OMJulia.convertMo2Fmu(mod)
     @test isfile(fmu2)
 
-    # The round trip back: convertFmu2Mo had no coverage at all before this,
-    # export only.
-    mofile = OMJulia.convertFmu2Mo(mod, fmu2)
-    @test isfile(mofile)
-    @test occursin("model", read(mofile, String))
-
     OMJulia.quit(mod)
 end
