@@ -119,6 +119,58 @@ function omcStartupLog(stdoutfile::AbstractString, stderrfile::AbstractString)
 end
 
 """
+How long to wait for omc to answer the handshake that proves the ZMQ socket is
+live, in milliseconds.
+"""
+const HANDSHAKE_TIMEOUT_MS = 10_000
+
+"""
+How many times to connect and ask before giving up on omc answering.
+"""
+const HANDSHAKE_ATTEMPTS = 3
+
+"""
+    connectToOMC(context, endpoint; attempts=HANDSHAKE_ATTEMPTS, timeout_ms=HANDSHAKE_TIMEOUT_MS)
+
+Connect a REQ socket to `endpoint` and return it once omc has answered on it.
+
+omc writes its port file before it is necessarily serving on that port, so a
+request sent immediately afterwards can be accepted by ZeroMQ and then never
+answered, leaving `recv` blocked for good -- issue #39. Ask a cheap question
+with a deadline instead, and start again on a fresh socket if it goes
+unanswered: a REQ socket that has timed out cannot be reused, because ZeroMQ
+will not let it send twice in a row.
+
+The returned socket blocks indefinitely again. Only the handshake gets a
+deadline; a simulation may legitimately take minutes to answer.
+"""
+function connectToOMC(context::ZMQ.Context, endpoint::AbstractString;
+                      attempts::Integer = HANDSHAKE_ATTEMPTS,
+                      timeout_ms::Integer = HANDSHAKE_TIMEOUT_MS)::ZMQ.Socket
+    for attempt in 1:attempts
+        socket = ZMQ.Socket(context, REQ)
+        # ZMQ lingers indefinitely by default, so closing a socket whose peer is
+        # gone blocks forever -- if omc dies with a request outstanding, Julia
+        # then hangs on exit in the socket finalizer. Nothing is gained by
+        # waiting to flush a request omc will never read.
+        socket.linger = 0
+        socket.rcvtimeo = timeout_ms
+        ZMQ.connect(socket, endpoint)
+        ZMQ.send(socket, "getVersion()")
+        try
+            ZMQ.recv(socket)
+            socket.rcvtimeo = -1
+            return socket
+        catch err
+            close(socket)
+            err isa ZMQ.TimeoutError || rethrow()
+        end
+    end
+    error("omc did not answer on \"$endpoint\" after $attempts attempts of " *
+          "$(timeout_ms / 1000) s each.")
+end
+
+"""
     ZMQSession <: Any
 
 ZeroMQ session running interactive omc process.
@@ -222,13 +274,14 @@ mutable struct ZMQSession
         rm.([stdoutfile, stderrfile], force=true)
         filedata = read(fullpath, String)
         context = ZMQ.Context()
-        socket = ZMQ.Socket(context, REQ)
-        # ZMQ lingers indefinitely by default, so closing a socket whose peer is
-        # gone blocks forever -- if omc dies with a request outstanding, Julia
-        # then hangs on exit in the socket finalizer. Nothing is gained by
-        # waiting to flush a request omc will never read.
-        socket.linger = 0
-        ZMQ.connect(socket, filedata)
+        socket = try
+            connectToOMC(context, filedata)
+        catch
+            # No ZMQSession exists yet, so nothing will reap omc for us.
+            kill(omcprocess)
+            close(context)
+            rethrow()
+        end
 
         zmqSession = new(context, socket, omcprocess)
 

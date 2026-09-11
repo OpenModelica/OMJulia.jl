@@ -32,6 +32,12 @@ jobs:
 
       - run: "omc --version"
 
+      - name: "Install zip"
+        if: runner.os == 'Windows'
+        # omc's buildModelFMU/importFMU shell out to `zip`, which is not on
+        # the windows-latest runner (it has 7-Zip, not a `zip.exe` on PATH).
+        run: choco install zip -y
+
       - name: "Set up Julia"
         uses: julia-actions/setup-julia@v2
         with:
@@ -47,4 +53,38 @@ jobs:
       - name: "Test OMJulia"
         uses: julia-actions/julia-runtest@v1
         with:
-          coverage: false
+          # One Julia is enough -- the two differ in what they run, not in
+          # what OMJulia code they reach -- but both operating systems are
+          # needed: the session startup in src/omcSession.jl branches on the
+          # platform, and a report from Linux alone marks the Windows half
+          # uncovered for good. Codecov merges the two.
+          coverage: ${{ matrix.julia-version == '1.12' }}
+
+      - name: "Install regression-test dependencies"
+        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1.12'
+        run: julia --project=regression-tests/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+
+      - name: "Test MSL example enumeration"
+        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1.12'
+        # Only omc's scripting API, no platform-specific session startup and
+        # nothing that shells out to a C compiler, so one job is enough. This
+        # is what caught allExamplesPackages/mslAreasWithExamples only
+        # looking one level under Modelica and silently missing Electrical,
+        # Mechanics, Magnetic, Math and Thermal -- worth running on every
+        # pull request rather than waiting for Nightly's msl-areas job to
+        # notice every third night.
+        run: julia --project=regression-tests/. regression-tests/enumerateExamplesTest.jl
+
+      - name: "Collect coverage"
+        if: matrix.julia-version == '1.12'
+        uses: julia-actions/julia-processcoverage@v1
+
+      - name: "Upload coverage to Codecov"
+        if: matrix.julia-version == '1.12'
+        uses: codecov/codecov-action@v5
+        with:
+          files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          # A pull request from a fork cannot see the token. Report what it
+          # can and leave the run green either way.
+          fail_ci_if_error: false

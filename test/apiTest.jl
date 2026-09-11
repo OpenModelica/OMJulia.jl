@@ -100,5 +100,24 @@ import OMJulia
     flatModelicaCode = OMJulia.API.instantiateModel(omc, "BouncingBall")
     @test occursin("class BouncingBall", flatModelicaCode)
 
+    # The experiment settings are optional, and each one is spliced into the
+    # scripting call separately.
+    @test OMJulia.API.buildModel(omc, "BouncingBall",
+                                 startTime = 0.0,
+                                 stopTime = 2.0,
+                                 numberOfIntervals = 100,
+                                 tolerance = 1e-8)[2] == "BouncingBall_init.xml"
+    OMJulia.API.simulate(omc, "BouncingBall",
+                         startTime = 0.0,
+                         stopTime = 2.0,
+                         numberOfIntervals = 100,
+                         tolerance = 1e-8)
+
+    # What each of these reports when omc says no.
+    @test_throws OMJulia.API.ScriptingError OMJulia.API.loadFile(omc, "no-such-file.mo")
+    @test_throws OMJulia.API.ScriptingError OMJulia.API.setCommandLineOptions(omc, "--thisIsNotAnOption")
+    @test_throws OMJulia.API.ScriptingError OMJulia.API.instantiateModel(omc, "NoSuchClass")
+    @test_throws OMJulia.API.ScriptingError OMJulia.API.simulate(omc, "NoSuchClass")
+
     OMJulia.quit(omc)
 end

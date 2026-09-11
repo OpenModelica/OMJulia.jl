@@ -35,6 +35,27 @@ around the loop again. It only bounds how long we can sit in an unreturnable
 const RECEIVE_POLL_INTERVAL_MS = 500
 
 """
+What `zmq_strerror` says when there is no error, which is what a cleared errno
+renders as.
+"""
+const NO_ZMQ_ERROR = Libc.strerror(0)
+
+"""
+    isSpuriousStateError(err)
+
+Whether `err` is ZMQ reporting an error that is not one.
+
+`ZMQ._recv!` reads `zmq_errno()` on the line after the `zmq_msg_recv` that
+failed. Under an interpreter -- Debugger.jl, or the VS Code Julia extension --
+enough Julia runs between those two calls to clear errno, so an ordinary "no
+message yet" comes back as a `StateError` naming no error at all. A real
+`StateError` names a real one.
+
+See https://github.com/OpenModelica/OMJulia.jl/issues/66
+"""
+isSpuriousStateError(err) = err isa ZMQ.StateError && err.msg == NO_ZMQ_ERROR
+
+"""
     receiveMessage(omc, expr, timeout)
 
 Wait for omc's reply to `expr`.
@@ -49,14 +70,34 @@ omc is running, which is what a long `simulate` needs.
 function receiveMessage(omc::OMCSession, expr::AbstractString, timeout::Union{Real, Nothing})
     socket = omc.zmqSession.socket
     previousTimeout = socket.rcvtimeo
-    socket.rcvtimeo = RECEIVE_POLL_INTERVAL_MS
     deadline = isnothing(timeout) ? nothing : time() + timeout
     try
         while true
+            # Never block past the caller's deadline. Polling on a fixed
+            # interval rounded every shorter timeout up to it, so a small
+            # `timeout` gave up late, or -- if omc answered inside the first
+            # poll -- not at all.
+            poll = RECEIVE_POLL_INTERVAL_MS
+            if !isnothing(deadline)
+                remaining = (deadline - time()) * 1000
+                if remaining <= 0
+                    error("No reply from omc for `$(expr)` after $(timeout) s. " *
+                          "omc is still running, so it may just be slow -- pass a " *
+                          "larger `timeout`, or `nothing` to wait indefinitely.")
+                end
+                poll = min(poll, max(1, ceil(Int, remaining)))
+            end
+            socket.rcvtimeo = poll
             try
                 return ZMQ.Sockets.recv(socket)
             catch err
-                err isa ZMQ.TimeoutError || rethrow()
+                if isSpuriousStateError(err)
+                    # Not an error, just an empty poll wearing one. Give omc a
+                    # moment rather than spinning on it.
+                    sleep(0.01)
+                elseif !(err isa ZMQ.TimeoutError)
+                    rethrow()
+                end
                 if !process_running(omc.zmqSession.omcprocess)
                     error("omc exited while waiting for a reply to `$(expr)`. " *
                           "The session is dead; create a new OMCSession. " *

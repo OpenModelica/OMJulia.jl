@@ -26,16 +26,33 @@ EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
 CONDITIONS OF OSMC-PL.
 =#
 
-using SafeTestsets
-using Test
+# Prints, and (under CI) writes to $GITHUB_OUTPUT, the JSON array of MSL
+# areas the Nightly workflow's msl-coverage matrix should shard over.
+#
+#   julia listMslAreas.jl [msl-version]
 
-@testset "OMJulia" begin
-    @safetestset "Parsing" begin include("parserTest.jl") end
-    @safetestset "Port file" begin include("portFileTest.jl") end
-    @safetestset "Set methods" begin include("setMethodsTest.jl") end
-    @safetestset "OMCSession" begin include("omcTest.jl") end
-    @safetestset "ModelicaSystem" begin include("modelicaSystemTest.jl") end
-    @safetestset "Get methods" begin include("getMethodsTest.jl") end
-    @safetestset "API" begin include("apiTest.jl") end
-    @safetestset "FMI export/import" begin include("testFMIExport.jl") end
+import Pkg; Pkg.activate(@__DIR__)
+import OMJulia
+
+include("enumerateExamples.jl")
+
+version = length(ARGS) >= 1 ? ARGS[1] : "4.1.0"
+
+omc = OMJulia.OMCSession()
+local areas
+try
+  OMJulia.sendExpression(omc, "loadModel(Modelica, {\"$(version)\"})")
+  areas = mslAreasWithExamples(omc)
+finally
+  OMJulia.quit(omc)
+end
+
+json = "[" * join(("\"" * a * "\"" for a in areas), ",") * "]"
+println("areas=", json)
+
+out = get(ENV, "GITHUB_OUTPUT", nothing)
+if out !== nothing
+  open(out, "a") do io
+    println(io, "areas=", json)
+  end
 end

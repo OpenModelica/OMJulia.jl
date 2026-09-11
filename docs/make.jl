@@ -30,6 +30,20 @@ using Documenter, OMJulia
 
 ENV["JULIA_DEBUG"]="Documenter"
 
+# Every @repl block in the manual runs against a live omc. Without one they
+# render their own error text into the published page instead of failing, which
+# is how https://github.com/OpenModelica/OMJulia.jl/issues/119 happened: the
+# quickstart shipped with "could not spawn omc" where its output should be.
+# Fail here, where it is obvious, rather than publishing that.
+@info "Check that omc is available"
+let omc = OMJulia.OMCSession()
+    try
+        @info "Building the documentation against omc $(OMJulia.sendExpression(omc, "getVersion()"))"
+    finally
+        OMJulia.quit(omc)
+    end
+end
+
 @info "Make the docs"
 makedocs(
   sitename = "OMJulia.jl",
@@ -40,9 +54,15 @@ makedocs(
     "Quickstart" => "quickstart.md",
     "ModelicaSystem" => "modelicaSystem.md",
     "OMJulia.API" => "api.md",
-    "sendExpression" => "sendExpression.md"
+    "sendExpression" => "sendExpression.md",
+    "MSL coverage" => "mslCoverage.md"
   ],
   modules = [OMJulia],
+  # A failing @example block used to render its own error text into the
+  # published page and pass. That is how
+  # https://github.com/OpenModelica/OMJulia.jl/issues/119 stayed unnoticed --
+  # the quickstart shipped an ERROR where the bouncing ball plot belonged.
+  strict = [:example_block],
 )
 
 @info "Deploy the docs"

@@ -3,3 +3,16 @@
 /BouncingBall*
 Manifest.toml
 docs/Manifest.toml
+
+# omc writes a model's generated sources, objects and results into the working
+# directory, which is the repository root when a session is started here.
+/*.o
+/*.c
+/*.h
+/*.libs
+/*.makefile
+/*.fmu
+/*_res.mat
+/*_info.json
+/*_init.xml
+/*.log

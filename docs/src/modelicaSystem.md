@@ -82,6 +82,7 @@ In order to get the work directory use [`getWorkDirectory`](@ref).
 
 ```@docs
 getWorkDirectory
+setWorkDirectory
 ```
 
 ```@repl ModSeborgCSTRorg-example
@@ -114,6 +115,7 @@ getOutputs
 getParameters
 getSimulationOptions
 getSolutions
+getSolutionNames
 ```
 
 ### Examples
@@ -152,45 +154,77 @@ To read the simulation results, we need to simulate the model first and use the 
 simulate(mod)
 ```
 
-The getSolution method can be used in two different ways.
-1. using default result filename
-2. use the result filenames provided by user
-
-This provides a way to compare simulation results and perform regression testing
+`getSolutions` returns a `DataFrame`. The `time` column is always there,
+whether or not you asked for it, so a returned frame stands on its own. Pass
+no variable names to read the whole result file.
 
 ```@repl ModSeborgCSTRorg-example
-getSolutions(mod)
-getSolutions(mod, ["time","a"])
+getSolutions(mod, ["a"])
+getSolutions(mod, "Tc")
 ```
-### Examples of using resultFile provided by user location
+
+Use `getSolutionNames` when you only want to know which variables a result
+file holds, without reading them.
+
+```@repl ModSeborgCSTRorg-example
+getSolutionNames(mod)
+```
+
+The result file can also be one you provide, which is how two runs are
+compared and how regression tests are written.
 
 ```
-getSolutions(mod, resultfile="C:/BouncingBal/tmpbouncingBall.mat") //returns list of simulation variables for which results are available , the resulfile location is provided by user
-getSolutions(mod, ["time","h"], resultfile="C:/BouncingBal/tmpbouncingBall.mat") // return list of array
+getSolutionNames(mod, resultfile="C:/BouncingBall/tmpbouncingBall.mat")
+getSolutions(mod, ["h"], resultfile="C:/BouncingBall/tmpbouncingBall.mat")
 ```
 ## Set Methods
 
 ```@docs
 setInputs
 setParameters
+setContinuous
 setSimulationOptions
+isParameterChangeable
 ```
 
 ### Examples
 
 ```@repl ModSeborgCSTRorg-example
-setInputs(mod, "cAi=100")
-setInputs(mod, ["cAi=100","Ti=200","Vdi=300","Tc=250"])
+setInputs(mod, Dict("cAi" => 100))
+setInputs(mod, Dict("cAi" => 100, "Ti" => 200, "Vdi" => 300, "Tc" => 250))
+```
+
+An input may also vary over the simulation, given as `(time, value)` points.
+
+```@repl ModSeborgCSTRorg-example
+setInputs(mod, Dict("cAi" => [(0, 100), (1, 50)]))
 ```
 
 ```@repl ModSeborgCSTRorg-example
-setParameters(mod, "a=3")
-setParameters(mod, ["a=4","V=200"])
+setParameters(mod, Dict("a" => 3))
+setParameters(mod, Dict("a" => 4, "V" => 200))
 ```
 
+A parameter that omc cannot override -- a structural, final, protected or
+evaluated one, or one with a non-constant binding -- is an error rather than a
+warning, since the alternative is simulating with the old value and saying
+nothing. Ask first with `isParameterChangeable` if you need to.
+
+Continuous variables take start values the same way.
+
 ```@repl ModSeborgCSTRorg-example
-setSimulationOptions(mod, ["stopTime=2.0", "tolerance=1e-08"])
+setContinuous(mod, Dict("T" => 350))
 ```
+
+Simulation options are keyword arguments. `stepSize` is what the Modelica
+`experiment` annotation calls `Interval`.
+
+```@repl ModSeborgCSTRorg-example
+setSimulationOptions(mod, stopTime = 2.0, tolerance = 1e-08)
+```
+
+The `"name=value"` string form all four set methods used to take still works,
+but it is deprecated and will be removed in a future breaking release.
 
 ## Advanced Simulation
 
@@ -202,7 +236,7 @@ An example of how to do advanced simulation to set parameter values using set me
 
 ```@repl ModSeborgCSTRorg-example
 getParameters(mod)
-setParameters(mod, "a=3.0")
+setParameters(mod, Dict("a" => 3.0))
 ```
 
 To check whether new values are updated to model , we can again query the getParameters().
@@ -214,7 +248,7 @@ getParameters(mod)
 Similary we can also use setInputs() to set a value for the inputs during various time interval can also be done using the following.
 
 ```@repl ModSeborgCSTRorg-example
-setInputs(mod, "cAi=100")
+setInputs(mod, Dict("cAi" => 100))
 ```
 And finally we simulate the model
 
@@ -226,6 +260,7 @@ simulate(mod)
 
 ```@docs
 linearize
+OMJulia.LinearizationResult
 getLinearizationOptions
 setLinearizationOptions
 getLinearInputs
@@ -241,7 +276,7 @@ getLinearizationOptions(mod, ["startTime","stopTime"])
 ```
 
 ```@repl ModSeborgCSTRorg-example
-setLinearizationOptions(mod,["stopTime=2.0","tolerance=1e-06"])
+setLinearizationOptions(mod, stopTime = 2.0, tolerance = 1e-06)
 ```
 
 ```@repl ModSeborgCSTRorg-example
@@ -252,6 +287,13 @@ res = linearize(mod)
 getLinearInputs(mod)
 getLinearOutputs(mod)
 getLinearStates(mod)
+```
+
+## FMI
+
+```@docs
+convertMo2Fmu
+convertFmu2Mo
 ```
 
 ## Sensitivity Analysis

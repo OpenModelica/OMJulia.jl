@@ -30,18 +30,20 @@ module OMJulia
     global IS_FILE_OMJULIA = false
 
     using DataFrames
-    using DataStructures
     using LightXML
     using Random
     using ZMQ
 
     export sendExpression, ModelicaSystem
     # getMethods
-    export getParameters, getQuantities, showQuantities, getInputs, getOutputs, getSimulationOptions, getSolutions, getContinuous, getWorkDirectory
+    export getParameters, getQuantities, showQuantities, getInputs, getOutputs, getSimulationOptions, getSolutions, getSolutionNames, getContinuous, getWorkDirectory
     # setMethods
-    export setInputs, setParameters, setSimulationOptions
+    export setInputs, setParameters, setContinuous, setSimulationOptions, setWorkDirectory
+    export isParameterChangeable
     # simulation
     export simulate, buildModel
+    # FMI
+    export convertMo2Fmu, convertFmu2Mo
     # Linearizion
     export linearize, getLinearInputs, getLinearOutputs, getLinearStates, getLinearizationOptions, setLinearizationOptions
     # sensitivity analysis

@@ -33,6 +33,13 @@ function check(string, expected_value, expected_type)
     return expected_value == value && expected_type == typeof(value)
 end
 
+@testset "Parser errors" begin
+    # A sequence closed by the wrong token, and a record whose name is not an
+    # identifier: the two ways checkToken can fail.
+    @test_throws OMJulia.Parser.ParseError OMJulia.Parser.parseOM("{1,2)")
+    @test_throws OMJulia.Parser.ParseError OMJulia.Parser.parseOM("record 1")
+end
+
 @testset "Parser" begin
     @test check("123.0", 123.0, Float64)
     @test check("123", 123, Int)
