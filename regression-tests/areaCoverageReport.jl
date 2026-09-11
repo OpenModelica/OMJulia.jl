@@ -44,10 +44,9 @@ area = ARGS[1]
 version = length(ARGS) >= 2 ? ARGS[2] : "4.1.0"
 
 omc = OMJulia.OMCSession()
-local models
-try
+models = try
   OMJulia.sendExpression(omc, "loadModel(Modelica, {\"$(version)\"})")
-  models = exampleModels(omc, area)
+  exampleModels(omc, area)
 finally
   OMJulia.quit(omc)
 end

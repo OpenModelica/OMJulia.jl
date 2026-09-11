@@ -39,10 +39,9 @@ include("enumerateExamples.jl")
 version = length(ARGS) >= 1 ? ARGS[1] : "4.1.0"
 
 omc = OMJulia.OMCSession()
-local areas
-try
+areas = try
   OMJulia.sendExpression(omc, "loadModel(Modelica, {\"$(version)\"})")
-  areas = mslAreasWithExamples(omc)
+  mslAreasWithExamples(omc)
 finally
   OMJulia.quit(omc)
 end
