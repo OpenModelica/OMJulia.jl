@@ -75,6 +75,13 @@ jobs:
         # notice every third night.
         run: julia --project=regression-tests/. regression-tests/enumerateExamplesTest.jl
 
+      - name: "Test MSL coverage report aggregation"
+        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1.12'
+        # No omc needed -- coverageReport.jl is pure text in, text out -- but
+        # gated the same as the enumeration test above so it runs once, not
+        # once per matrix leg.
+        run: julia --project=regression-tests/. regression-tests/coverageReportTest.jl
+
       - name: "Collect coverage"
         if: matrix.julia-version == '1.12'
         uses: julia-actions/julia-processcoverage@v1
