@@ -50,7 +50,7 @@ end
 """
 Direct children of `Modelica` that have an `Examples` package somewhere
 beneath them, e.g. "Blocks", "Electrical", "Mechanics" -- the areas the
-Nightly workflow's msl-coverage matrix shards over.
+MSL coverage workflow's matrix shards over.
 """
 function mslAreasWithExamples(omc::OMJulia.OMCSession)
   packages = allExamplesPackages(omc)

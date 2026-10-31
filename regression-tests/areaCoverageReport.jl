@@ -26,7 +26,7 @@ EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
 CONDITIONS OF OSMC-PL.
 =#
 
-# One shard of the Nightly workflow's msl-coverage matrix: every simulatable
+# One shard of the MSL coverage workflow's matrix: every simulatable
 # model under `Modelica.<area>.Examples`, simulated (not exported/re-imported
 # -- see runSimulateOnly.jl for why). Never throws on a model failing; that
 # is the report, not an error in the sweep itself. A model hanging or omc
