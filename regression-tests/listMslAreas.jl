@@ -27,7 +27,7 @@ CONDITIONS OF OSMC-PL.
 =#
 
 # Prints, and (under CI) writes to $GITHUB_OUTPUT, the JSON array of MSL
-# areas the Nightly workflow's msl-coverage matrix should shard over.
+# areas the MSL coverage workflow's matrix should shard over.
 #
 #   julia listMslAreas.jl [msl-version]
 
