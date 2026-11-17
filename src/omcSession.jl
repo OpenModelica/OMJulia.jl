@@ -177,21 +177,29 @@ ZeroMQ session running interactive omc process.
 
 -----------------------------------------
 
-    ZMQSession(omc::Union{String, Nothing}=nothing)::ZMQSession
+    ZMQSession(omc::Union{String, Nothing}=nothing; version=nothing)::ZMQSession
 
 Start new interactive OpenModelica session using ZeroMQ.
 
   ## Arguments
 
 - `omc::Union{String, Nothing}`: Path to OpenModelica compiler.
-                                 Use omc from `PATH` if nothing is provided.
+                                 See [`OMJulia.OMCSession`](@ref) for what is used if nothing is provided.
+
+  ## Keywords
+
+- `version::Union{String, Nothing}`: OpenModelica version to use if several are installed.
 """
 mutable struct ZMQSession
     context::ZMQ.Context
     socket::ZMQ.Socket
     omcprocess::Base.Process
 
-    function ZMQSession(omc::Union{String, Nothing}=nothing)::ZMQSession
+    function ZMQSession(omc::Union{String, Nothing}=nothing; version::Union{String, Nothing}=nothing)::ZMQSession
+        # an omc the caller did not ask for is used quietly
+        omcGiven = !isnothing(omc)
+        omc = locateOMC(omc; version=version)
+
         args1 = "--interactive=zmq"
         # Draw from the OS, not the global RNG. `@testset` reseeds the global
         # RNG identically for every testset, so `randstring(10)` returns the
@@ -205,32 +213,22 @@ mutable struct ZMQSession
 
         local omcprocess
         if Sys.iswindows()
-            if !isnothing(omc )
-                ompath = replace(omc, r"[/\\]+" => "/")
+            if !isnothing(omc)
                 dirpath = dirname(dirname(omc))
-                ## create a omc process with OPENMODELICAHOME set to custom directory
-                @info("Setting environment variable OPENMODELICAHOME=\"$dirpath\" for this session.")
+                ## create a omc process with OPENMODELICAHOME set to the directory of that omc
+                if omcGiven
+                    @info("Setting environment variable OPENMODELICAHOME=\"$dirpath\" for this session.")
+                end
                 withenv("OPENMODELICAHOME" => dirpath) do
-                    omcprocess = open(pipeline(`$omc $args1 $args2`, stdout=stdoutfile, stderr=stderrfile))
-                end
-            else
-                omhome = ""
-                try
-                    omhome = ENV["OPENMODELICAHOME"]
-                catch Exception
-                    println(Exception, "is not set, Please set the environment Variable")
-                    return
-                end
-                ompath = replace(joinpath(omhome, "bin", "omc.exe"), r"[/\\]+" => "/")
-                # ompath=joinpath(omhome,"bin")
-                ## create a omc process with default OPENMODELICAHOME set in environment variable
-                withenv("OPENMODELICAHOME" => omhome) do
                     # Redirect to files like every other branch. Without a
                     # redirect omc's output goes to a pipe nobody reads, and a
                     # chatty run -- `-d=` debug flags, say -- fills the pipe
                     # buffer and blocks omc forever.
-                    omcprocess = open(pipeline(`$ompath $args1 $args2`, stdout=stdoutfile, stderr=stderrfile))
+                    omcprocess = open(pipeline(`$omc $args1 $args2`, stdout=stdoutfile, stderr=stderrfile))
                 end
+            else
+                ## no OPENMODELICAHOME and no OPENMODELICAHOME_<version>: use omc from PATH
+                omcprocess = open(pipeline(`omc $args1 $args2`, stdout=stdoutfile, stderr=stderrfile))
             end
             portfile = join(["openmodelica.port.julia.", randPortSuffix])
         else
@@ -300,14 +298,36 @@ OMC session struct.
 
 --------------
 
-    OMCSession(omc=nothing)
+    OMCSession(omc=nothing; version=nothing)
 
 Create new OpenModelica session.
 
 ## Arguments
 
 - `omc::Union{String, Nothing}`: Path to OpenModelica compiler.
-                                 Use omc from `PATH` if nothing is provided.
+
+## Keywords
+
+- `version::Union{String, Nothing}`: OpenModelica version to use if several are installed,
+                                     e.g. `"1.27.0"` or `"1.27"` for the newest installed 1.27.x.
+
+## Which OpenModelica is used
+
+The first one that applies:
+
+1. `omc`
+2. `version`: the installation directory in the environment variable
+   `OPENMODELICAHOME_<version>`. The Windows installer sets it for each installed
+   version, with every character of the version that is not a letter or a digit
+   replaced by an underscore (`OPENMODELICAHOME_1_27_0` for version 1.27.0).
+3. on Windows, the environment variable `OPENMODELICAHOME`: the version selected
+   as the default one when it was installed
+4. on Windows, the newest version found in `OPENMODELICAHOME_<version>`
+5. omc from `PATH`
+
+```julia
+omc = OMJulia.OMCSession(version="1.27.0")
+```
 
 See also [`ModelicaSystem`](@ref), [`OMJulia.quit`](@ref).
 """
@@ -337,7 +357,7 @@ mutable struct OMCSession
     zmqSession::ZMQSession
     linearization::Linearization
 
-    function OMCSession(omc::Union{String, Nothing}=nothing)::OMCSession
+    function OMCSession(omc::Union{String, Nothing}=nothing; version::Union{String, Nothing}=nothing)::OMCSession
         this = new()
         this.overridevariables = Dict()
         this.simoptoverride = Dict()
@@ -358,7 +378,7 @@ mutable struct OMCSession
         this.variableFilter = nothing
         this.tempdir = ""
         this.linearization = Linearization()
-        this.zmqSession = ZMQSession(omc)
+        this.zmqSession = ZMQSession(omc; version=version)
 
         return this
     end
