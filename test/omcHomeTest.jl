@@ -153,3 +153,44 @@ end
         @test_skip "no omc on PATH or in OPENMODELICAHOME"
     end
 end
+
+# Start a session, ask omc for its version and stop it again.
+function sessionAnswers(omc=nothing)
+    session = OMJulia.OMCSession(omc)
+    try
+        return OMJulia.sendExpression(session, "getVersion()") isa String
+    finally
+        OMJulia.quit(session)
+    end
+end
+
+# The environment without OPENMODELICAHOME and without any OPENMODELICAHOME_<version>.
+function withoutOMHome(f)
+    names = [name for name in keys(ENV) if startswith(uppercase(name), "OPENMODELICAHOME")]
+    withenv(f, [name => nothing for name in names]...)
+end
+
+@testset "Session of a given omc" begin
+    omcOnPath = Sys.which("omc")
+    omhome = isnothing(omcOnPath) ? get(ENV, "OPENMODELICAHOME", "") : dirname(dirname(omcOnPath))
+    if OMJulia.hasOMC(omhome)
+        omc = joinpath(omhome, "bin", Sys.iswindows() ? "omc.exe" : "omc")
+        @test sessionAnswers(omc)
+        # the given omc does not need the environment variables
+        withoutOMHome() do
+            @test sessionAnswers(omc)
+        end
+    else
+        @test_skip "no omc on PATH or in OPENMODELICAHOME"
+    end
+end
+
+@testset "Session of omc from PATH" begin
+    if !isnothing(Sys.which("omc"))
+        withoutOMHome() do
+            @test sessionAnswers()
+        end
+    else
+        @test_skip "no omc on PATH"
+    end
+end
