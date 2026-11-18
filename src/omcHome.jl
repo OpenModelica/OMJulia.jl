@@ -34,7 +34,7 @@ CONDITIONS OF OSMC-PL.
 # an underscore: version 1.27.0 is found via `OPENMODELICAHOME_1_27_0`.
 
 const OMHOME_ENV = "OPENMODELICAHOME"
-const OMHOME_ENV_VERSION_PREFIX = OMHOME_ENV * "_"
+const OMHOME_ENV_VERSION_PREFIX = string(OMHOME_ENV, "_")
 
 """
     versionEnvName(version::AbstractString)::String
@@ -48,7 +48,7 @@ function versionEnvName(version::AbstractString)::String
     if occursin(r"^[vV][0-9]", version)
         version = version[2:end]
     end
-    return OMHOME_ENV_VERSION_PREFIX * replace(version, r"[^0-9A-Za-z]" => "_")
+    return string(OMHOME_ENV_VERSION_PREFIX, replace(version, r"[^0-9A-Za-z]" => "_"))
 end
 
 """
@@ -113,7 +113,65 @@ function installedVersions(env=ENV)::Vector{Pair{String, String}}
 end
 
 """
-    locateOMC(omc=nothing; version=nothing, env=ENV, windows=Sys.iswindows())::Union{String, Nothing}
+    versionOMC(version, versions)::String
+
+Path to the omc executable of `version` among the installations `versions` (see
+[`installedVersions`](@ref)): the one of `OPENMODELICAHOME_<version>`, or of the
+newest `OPENMODELICAHOME_<version>...` if only the start of a version is given
+(`"1.27"` for the newest 1.27.x). It is an error if that version is not
+installed.
+"""
+function versionOMC(version::AbstractString, versions::Vector{Pair{String, String}})::String
+    name = uppercase(versionEnvName(version))
+    for (installed, omhome) in versions
+        if uppercase(installed) == name
+            return omcExecutable(omhome)
+        end
+    end
+    # versions are sorted, newest first
+    for (installed, omhome) in versions
+        if startswith(uppercase(installed), string(name, "_"))
+            return omcExecutable(omhome)
+        end
+    end
+    installed = isempty(versions) ? "none" : join(first.(versions), ", ")
+    error(string("Cannot find OpenModelica version \"$version\": no environment variable ",
+                 "$name or $(name)_*. Installed versions: $installed"))
+end
+
+"""
+    windowsDefaultOMC(env=ENV, versions=installedVersions(env))::Union{String, Nothing}
+
+The omc executable that is started on Windows if neither an omc nor a version is
+asked for: the one in `OPENMODELICAHOME`, else the one of the newest
+`OPENMODELICAHOME_<version>`, else `nothing` for `omc` from `PATH`.
+
+It only reads `env` and the file system, so it gives the same answer on every
+platform; [`locateOMC`](@ref) calls it on Windows only.
+"""
+function windowsDefaultOMC(env=ENV, versions::Vector{Pair{String, String}}=installedVersions(env))::Union{String, Nothing}
+    omhome = get(env, OMHOME_ENV, "")
+    # Without versioned installations the path is used as it is, as it always
+    # was. With them, a path left behind by an uninstalled version is skipped.
+    if !isempty(omhome) && (isempty(versions) || hasOMC(omhome))
+        return joinpath(omhome, "bin", "omc.exe")
+    end
+    if !isempty(versions)
+        return omcExecutable(last(first(versions)))
+    end
+    return nothing
+end
+
+# The omc to start if neither an omc nor a version is asked for; the platform is
+# known when the package is compiled.
+@static if Sys.iswindows()
+    defaultOMC(env) = windowsDefaultOMC(env)
+else
+    defaultOMC(env) = nothing
+end
+
+"""
+    locateOMC(omc=nothing; version=nothing, env=ENV)::Union{String, Nothing}
 
 Path to the omc executable to start, or `nothing` to start `omc` from `PATH`.
 The first one that applies is used:
@@ -131,43 +189,12 @@ On Linux and macOS `omc` from `PATH` is used unless `omc` or `version` is given.
 """
 function locateOMC(omc::Union{AbstractString, Nothing}=nothing;
                    version::Union{AbstractString, Nothing}=nothing,
-                   env=ENV,
-                   windows::Bool=Sys.iswindows())::Union{String, Nothing}
+                   env=ENV)::Union{String, Nothing}
     if !isnothing(omc)
         return String(omc)
     end
-
-    versions = installedVersions(env)
-
     if !isnothing(version)
-        name = uppercase(versionEnvName(version))
-        for (installed, omhome) in versions
-            if uppercase(installed) == name
-                return omcExecutable(omhome)
-            end
-        end
-        # versions are sorted, newest first
-        for (installed, omhome) in versions
-            if startswith(uppercase(installed), name * "_")
-                return omcExecutable(omhome)
-            end
-        end
-        installed = isempty(versions) ? "none" : join(first.(versions), ", ")
-        error("Cannot find OpenModelica version \"$version\": no environment variable " *
-              "$name or $(name)_*. Installed versions: $installed")
+        return versionOMC(version, installedVersions(env))
     end
-
-    if windows
-        omhome = get(env, OMHOME_ENV, "")
-        # Without versioned installations the path is used as it is, as it always
-        # was. With them, a path left behind by an uninstalled version is skipped.
-        if !isempty(omhome) && (isempty(versions) || hasOMC(omhome))
-            return joinpath(omhome, "bin", "omc.exe")
-        end
-        if !isempty(versions)
-            return omcExecutable(last(first(versions)))
-        end
-    end
-
-    return nothing
+    return defaultOMC(env)
 end

@@ -47,8 +47,10 @@ end
 
 omcOf(omhome) = joinpath(omhome, "bin", "omc.exe")
 
-locate(env; omc=nothing, version=nothing, windows=true) =
-    OMJulia.locateOMC(omc; version=version, env=env, windows=windows)
+locate(env; omc=nothing, version=nothing) = OMJulia.locateOMC(omc; version=version, env=env)
+
+# what is started on Windows if neither an omc nor a version is asked for
+windowsDefault(env) = OMJulia.windowsDefaultOMC(env)
 
 @testset "Environment variable of a version" begin
     @test OMJulia.versionEnvName("1.27.0") == RELEASE
@@ -80,8 +82,6 @@ mktempdir() do dir
         @test locate(env; version="1.27.0") == omcOf(env[RELEASE])
         @test locate(env; version="v1.27.0") == omcOf(env[RELEASE])
         @test locate(env; version="1.28.0-dev-900-gaaaaaaaaaa") == omcOf(env[NIGHTLY_OLD])
-        # also where OPENMODELICAHOME is not looked at
-        @test locate(env; version="1.27.0", windows=false) == omcOf(env[RELEASE])
     end
 
     @testset "start of a version" begin
@@ -111,22 +111,34 @@ mktempdir() do dir
     end
 
     @testset "OPENMODELICAHOME" begin
-        @test locate(merge(env, Dict("OPENMODELICAHOME" => env[RELEASE]))) == omcOf(env[RELEASE])
+        @test windowsDefault(merge(env, Dict("OPENMODELICAHOME" => env[RELEASE]))) == omcOf(env[RELEASE])
         # no versioned installations: the path is used as it is, as before
-        @test locate(Dict("OPENMODELICAHOME" => joinpath(dir, "not", "checked"))) ==
+        @test windowsDefault(Dict("OPENMODELICAHOME" => joinpath(dir, "not", "checked"))) ==
               joinpath(dir, "not", "checked", "bin", "omc.exe")
         # left behind by an uninstalled version
-        @test locate(merge(env, Dict("OPENMODELICAHOME" => joinpath(dir, "uninstalled")))) == omcOf(env[NIGHTLY])
+        @test windowsDefault(merge(env, Dict("OPENMODELICAHOME" => joinpath(dir, "uninstalled")))) ==
+              omcOf(env[NIGHTLY])
     end
 
     @testset "Newest version" begin
-        @test locate(env) == omcOf(env[NIGHTLY])
+        @test windowsDefault(env) == omcOf(env[NIGHTLY])
     end
 
     @testset "omc from PATH" begin
+        @test isnothing(windowsDefault(Dict("PATH" => "/usr/bin")))
         @test isnothing(locate(Dict("PATH" => "/usr/bin")))
-        # Linux and macOS: the environment variables are only used for a version
-        @test isnothing(locate(merge(env, Dict("OPENMODELICAHOME" => env[RELEASE])); windows=false))
+    end
+
+    @testset "Platform" begin
+        withHome = merge(env, Dict("OPENMODELICAHOME" => env[RELEASE]))
+        if Sys.iswindows()
+            @test locate(withHome) == omcOf(env[RELEASE])
+            @test locate(env) == omcOf(env[NIGHTLY])
+        else
+            # Linux and macOS: the environment variables are only used for a version
+            @test isnothing(locate(withHome))
+            @test isnothing(locate(env))
+        end
     end
 
     @testset "Names are case-insensitive" begin
