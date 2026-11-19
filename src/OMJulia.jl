@@ -53,6 +53,7 @@ module OMJulia
 
     include("error.jl")
     include("parser.jl")
+    include("omcHome.jl")
     include("omcSession.jl")
     include("sendExpression.jl")
     include("modelicaSystem.jl")

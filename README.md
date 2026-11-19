@@ -50,6 +50,20 @@ julia> OMJulia.quit(omc)
 "quit requested, shutting server down\n"
 ```
 
+### Several OpenModelica versions
+
+`OMJulia.OMCSession()` starts the omc from `PATH`, or on Windows the OpenModelica that the
+environment variable `OPENMODELICAHOME` points to. The Windows installer allows several
+versions to be installed side by side and sets `OPENMODELICAHOME_<version>` for each of them
+(`OPENMODELICAHOME_1_27_0` for version 1.27.0). Select one of them with:
+
+```julia
+julia> omc = OMJulia.OMCSession(version="1.27.0")  # exactly this version
+julia> omc = OMJulia.OMCSession(version="1.27")    # the newest installed 1.27.x
+```
+
+A path to omc can be given as well: `OMJulia.OMCSession("C:/OpenModelica/bin/omc.exe")`.
+
 ## Bug Reports
 
 - Submit OMJulia.jl bugs in this repository's [Issues](../../issues) section.
